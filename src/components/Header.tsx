@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Menu, X, Phone, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import logoEmpire from '@/assets/logo-empire.svg';
+import { reachGoal } from '@/lib/metrika';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -32,7 +33,6 @@ const Header = () => {
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
-          {/* Logo */}
           <a href="#" className="flex items-center gap-3 group">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow">
               <Sparkles className="w-6 h-6 text-primary-foreground" />
@@ -40,7 +40,6 @@ const Header = () => {
             <img src={logoEmpire} alt="Империя Блеска" className="h-10 sm:h-12 w-auto" />
           </a>
 
-          {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1">
             {navLinks.map((link) => (
               <a
@@ -54,9 +53,12 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* CTA */}
           <div className="hidden lg:flex items-center gap-4">
-            <a href="tel:+79002885255" className="flex items-center gap-2 text-base font-bold text-foreground hover:text-primary transition-colors">
+            <a
+              href="tel:+79002885255"
+              onClick={() => reachGoal('phone_click')}
+              className="flex items-center gap-2 text-base font-bold text-foreground hover:text-primary transition-colors"
+            >
               <Phone className="w-5 h-5" />
               +7 900 288-52-55
             </a>
@@ -65,7 +67,6 @@ const Header = () => {
             </Button>
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             className="lg:hidden p-2 rounded-xl hover:bg-muted transition-colors"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -74,7 +75,6 @@ const Header = () => {
           </button>
         </div>
 
-        {/* Mobile Menu */}
         <div
           className={`lg:hidden overflow-hidden transition-all duration-300 ${
             isMobileMenuOpen ? 'max-h-80 pb-6' : 'max-h-0'
@@ -91,7 +91,11 @@ const Header = () => {
                 {link.name}
               </a>
             ))}
-            <a href="tel:+79002885255" className="px-4 py-3 flex items-center gap-2 font-bold text-foreground">
+            <a
+              href="tel:+79002885255"
+              onClick={() => reachGoal('phone_click')}
+              className="px-4 py-3 flex items-center gap-2 font-bold text-foreground"
+            >
               <Phone className="w-5 h-5" />
               +7 900 288-52-55
             </a>

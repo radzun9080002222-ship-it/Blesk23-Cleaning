@@ -101,7 +101,7 @@ const Pricing = ({ onSelectPlan }: PricingProps) => {
                 `}
               >
                 {isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-white text-primary text-xs font-bold rounded-full shadow-md uppercase tracking-wider">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full shadow-md uppercase tracking-wider">
                     Популярный выбор
                   </div>
                 )}

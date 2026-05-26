@@ -3,17 +3,17 @@
   "short_name": "Империя Блеска",
   "icons": [
     {
-      "src": "/android-chrome-192x192.png",
+      "src": "/favicon-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/android-chrome-512x512.png",
+      "src": "/favicon-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
   ],
-  "theme_color": "#2FAF8F",
+  "theme_color": "#0f8f8f",
   "background_color": "#ffffff",
   "display": "standalone"
 }

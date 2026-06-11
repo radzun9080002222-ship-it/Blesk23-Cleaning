@@ -496,7 +496,7 @@ const AfterRepairCleaning = () => {
 
         {/* SEO TEXT */}
         <section className="py-12 md:py-16 bg-white border-t border-[#DDEBE8]">
-          <article className="container mx-auto px-4 max-w-3xl prose prose-sm md:prose-base text-muted-foreground">
+          <article className="container mx-auto px-4 max-w-3xl text-muted-foreground space-y-4 [&_h2]:text-[#0D4D49] [&_h2]:font-heading [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-6 [&_h3]:text-[#0D4D49] [&_h3]:font-heading [&_h3]:text-xl [&_h3]:font-bold [&_h3]:mt-6 [&_p]:leading-relaxed">
             <h2>Уборка после ремонта в Сочи — профессионально и без следов</h2>
             <p>
               Ремонт — это всегда обновление и свежесть. Но после завершения

@@ -16,39 +16,29 @@ import RepairLeadForm from '@/components/repair/RepairLeadForm';
 import StickyMobileCTA from '@/components/repair/StickyMobileCTA';
 import { reachGoal } from '@/lib/metrika';
 
-import hero from '@/assets/repair/hero_gostinaya.jpg.asset.json';
-import k1do from '@/assets/repair/01_koridor_do.jpg.asset.json';
-import k1posle from '@/assets/repair/01_koridor_posle.jpg.asset.json';
-import k2do from '@/assets/repair/02_gostinaya_do.jpg.asset.json';
-import k2posle from '@/assets/repair/02_gostinaya_posle.jpg.asset.json';
-import k3do from '@/assets/repair/03_kran_do.jpg.asset.json';
-import k3posle from '@/assets/repair/03_kran_posle.jpg.asset.json';
-import k4do from '@/assets/repair/04_podokonnik_do.jpg.asset.json';
-import k4posle from '@/assets/repair/04_podokonnik_posle.jpg.asset.json';
-import k5do from '@/assets/repair/05_okna_do.jpg.asset.json';
-import k5posle from '@/assets/repair/05_okna_posle.jpg.asset.json';
-import k6do from '@/assets/repair/06_spalnya_do.jpg.asset.json';
-import k6posle from '@/assets/repair/06_spalnya_posle.jpg.asset.json';
-import k7do from '@/assets/repair/07_kuhnya_do.jpg.asset.json';
-import k7posle from '@/assets/repair/07_kuhnya_posle.jpg.asset.json';
-import gGostinaya from '@/assets/repair/gostinaya2.jpg.asset.json';
-import gVannaya from '@/assets/repair/vannaya.jpg.asset.json';
-import gKuhnya from '@/assets/repair/kuhnya.jpg.asset.json';
-import gSpalnya from '@/assets/repair/spalnya.jpg.asset.json';
-import gKomnata from '@/assets/repair/komnata_dom.jpg.asset.json';
+const hero = '/images/repair/hero_gostinaya.jpg';
 
 const phone = '+7 900 288-52-55';
 const waUrl = 'https://wa.me/79002885255';
 const tgUrl = 'https://t.me/+79002885255';
+const reviewsUrl = 'https://yandex.ru/maps/org/21130859655/reviews/';
 
 const beforeAfterItems = [
-  { before: k1do.url, after: k1posle.url, caption: 'Коридор, дом 180 м²' },
-  { before: k2do.url, after: k2posle.url, caption: 'Гостиная, ЖК в Сочи' },
-  { before: k3do.url, after: k3posle.url, caption: 'Сантехника: штукатурка → блеск' },
-  { before: k4do.url, after: k4posle.url, caption: 'Подоконник: плёнка и пыль' },
-  { before: k5do.url, after: k5posle.url, caption: 'Окна: строительная пыль' },
-  { before: k6do.url, after: k6posle.url, caption: 'Спальня после ремонта' },
-  { before: k7do.url, after: k7posle.url, caption: 'Кухня, ЖК в Сочи' },
+  { before: '/images/repair/01_koridor_do.jpg', after: '/images/repair/01_koridor_posle.jpg', caption: 'Коридор, дом 180 м²' },
+  { before: '/images/repair/02_gostinaya_do.jpg', after: '/images/repair/02_gostinaya_posle.jpg', caption: 'Гостиная, ЖК в Сочи' },
+  { before: '/images/repair/03_kran_do.jpg', after: '/images/repair/03_kran_posle.jpg', caption: 'Сантехника: штукатурка → блеск' },
+  { before: '/images/repair/04_podokonnik_do.jpg', after: '/images/repair/04_podokonnik_posle.jpg', caption: 'Подоконник: плёнка и пыль' },
+  { before: '/images/repair/05_okna_do.jpg', after: '/images/repair/05_okna_posle.jpg', caption: 'Окна: строительная пыль' },
+  { before: '/images/repair/06_spalnya_do.jpg', after: '/images/repair/06_spalnya_posle.jpg', caption: 'Спальня после ремонта' },
+  { before: '/images/repair/07_kuhnya_do.jpg', after: '/images/repair/07_kuhnya_posle.jpg', caption: 'Кухня, ЖК в Сочи' },
+];
+
+const galleryImages = [
+  '/images/repair/gostinaya2.jpg',
+  '/images/repair/vannaya.jpg',
+  '/images/repair/kuhnya.jpg',
+  '/images/repair/spalnya.jpg',
+  '/images/repair/komnata_dom.jpg',
 ];
 
 const whatIncluded = [
@@ -71,16 +61,16 @@ const steps = [
 
 const reviews = [
   {
-    name: 'Анна К.',
-    text: 'Заехали в квартиру сразу после ремонта — пыль везде, окна в плёнке. Бригада справилась за день, всё блестит. Очень довольна, рекомендую.',
+    name: 'Tohir I.',
+    text: 'Заказал клининг после ремонта! Девчонки молодцы, справились с поставленной задачей на 100%! Спасибо огромное! Теперь и у меня есть феи чистоты. Рекомендую!',
   },
   {
-    name: 'Дмитрий М.',
-    text: 'Дом 180 м² после стройки. Цену назвали сразу в WhatsApp, не торговались. Вышли утром, вечером уже принимал по чек-листу. Без нареканий.',
+    name: 'Мариям Тохчукова',
+    text: 'Это самая лучшая клининговая компания в Сочи. Хотела после ремонта уже чистоту и порядок, но самой тяжело было убраться. Попросила их. Всё блестит, сверкает. Видна работа грамотных мастеров!',
   },
   {
-    name: 'Елена С.',
-    text: 'Цемент с плитки сняли аккуратно, без царапин. Окна идеально вымыли — даже рамы и фурнитура. Спасибо команде Империи Блеска.',
+    name: 'Ирина Я.',
+    text: 'Огромная благодарность девочкам, которые убирали папе дом. Дом был очень грязный — справились великолепно, всё отмыли, даже постирали и повесили шторы. Большой объём работы за день, приехали со всем оборудованием и химией.',
   },
 ];
 
@@ -125,7 +115,7 @@ const AfterRepairCleaning = () => {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
     name: 'Империя Блеска',
-    image: hero.url,
+    image: 'https://www.blesk23.ru/images/repair/hero_gostinaya.jpg',
     telephone: '+79002885255',
     email: 'imperiableska2025@gmail.com',
     address: {
@@ -135,7 +125,7 @@ const AfterRepairCleaning = () => {
       addressCountry: 'RU',
     },
     priceRange: 'от 280 ₽/м²',
-    aggregateRating: { '@type': 'AggregateRating', ratingValue: '5.0', reviewCount: '41' },
+    aggregateRating: { '@type': 'AggregateRating', ratingValue: '5.0', reviewCount: '43' },
     areaServed: ['Сочи', 'Адлер', 'Красная Поляна'],
     openingHours: 'Mo-Su 08:00-20:00',
   };
@@ -146,9 +136,9 @@ const AfterRepairCleaning = () => {
         <title>Уборка после ремонта в Сочи — от 280 ₽/м² | Империя Блеска</title>
         <meta
           name="description"
-          content="Уборка после ремонта в Сочи от 280 ₽/м². Удалим строительную пыль, плёнку, краску и затирку за 1 день. Точная цена в WhatsApp за 2 минуты. Рейтинг 5.0 — 41 отзыв."
+          content="Уборка после ремонта в Сочи от 280 ₽/м². Удалим строительную пыль, плёнку, краску и затирку за 1 день. Точная цена в WhatsApp за 2 минуты. Рейтинг 5.0 — 43 отзыва."
         />
-        <link rel="canonical" href="https://imperiableska.ru/uborka-posle-remonta-sochi" />
+        <link rel="canonical" href="https://www.blesk23.ru/uborka-posle-remonta-sochi" />
         <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
         <script type="application/ld+json">{JSON.stringify(localBusinessJsonLd)}</script>
       </Helmet>
@@ -159,7 +149,7 @@ const AfterRepairCleaning = () => {
         {/* HERO */}
         <section className="relative overflow-hidden">
           <img
-            src={hero.url}
+            src={hero}
             alt="Чистая гостиная после ремонта в Сочи"
             className="absolute inset-0 w-full h-full object-cover"
             loading="eager"
@@ -185,7 +175,7 @@ const AfterRepairCleaning = () => {
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Star className="w-3.5 h-3.5 fill-[#F5C518] text-[#F5C518]" />
-                  Рейтинг 5.0 · 41 отзыв в Яндексе
+                  Рейтинг 5.0 · 43 отзыва в Яндексе
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -362,7 +352,7 @@ const AfterRepairCleaning = () => {
           <div className="container mx-auto px-4 max-w-6xl">
             <div className="text-center mb-10">
               <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                Рейтинг 5.0 — 41 отзыв в Яндексе
+                Рейтинг 5.0 — 43 отзыва в Яндексе
               </h2>
             </div>
 
@@ -390,7 +380,7 @@ const AfterRepairCleaning = () => {
                 className="rounded-full border-[#DDEBE8]"
               >
                 <a
-                  href="https://yandex.ru/maps/org/imperiya_bleska/"
+                  href={reviewsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -400,10 +390,10 @@ const AfterRepairCleaning = () => {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-12">
-              {[gGostinaya, gVannaya, gKuhnya, gSpalnya, gKomnata].map((g, i) => (
+              {galleryImages.map((g, i) => (
                 <img
                   key={i}
-                  src={g.url}
+                  src={g}
                   alt="Чистый объект после уборки"
                   loading="lazy"
                   className="w-full aspect-square object-cover rounded-2xl border border-[#DDEBE8]"
@@ -530,7 +520,7 @@ const AfterRepairCleaning = () => {
             </p>
             <h3>Почему выбирают «Империю Блеска»</h3>
             <p>
-              Рейтинг компании 5.0 в Яндекс Картах — 41 отзыв реальных клиентов. Работаем
+              Рейтинг компании 5.0 в Яндекс Картах — 43 отзыва реальных клиентов. Работаем
               ежедневно с 8:00 до 20:00, выезд возможен в течение суток. Принимаем оплату
               наличными, картой и безналом, работаем с юридическими лицами по договору.
               Чтобы заказать послеремонтную уборку в Сочи — позвоните по номеру

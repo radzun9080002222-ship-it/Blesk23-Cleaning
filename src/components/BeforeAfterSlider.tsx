@@ -49,19 +49,15 @@ const BeforeAfterSlider = ({ before, after, caption }: Props) => {
           className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           draggable={false}
         />
-        <div
-          className="absolute inset-0 overflow-hidden pointer-events-none"
-          style={{ width: `${pos}%` }}
-        >
-          <img
-            src={before}
-            alt={caption ? `${caption} — до` : 'до'}
-            loading="lazy"
-            className="absolute inset-0 h-full w-auto max-w-none object-cover"
-            style={{ width: `${100 / (pos / 100 || 0.0001)}%` }}
-            draggable={false}
-          />
-        </div>
+        <img
+          src={before}
+          alt={caption ? `${caption} — до` : 'до'}
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
+          draggable={false}
+        />
+
 
         {/* Labels */}
         <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/55 text-white text-xs font-medium tracking-wide">

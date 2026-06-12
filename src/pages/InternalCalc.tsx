@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send } from 'lucide-react';
+import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send, TrendingUp, Settings2 } from 'lucide-react';
 
 /* ====================== AMO CRM ====================== */
 
@@ -49,6 +49,45 @@ async function sendToAmo(payload: {
 type CleaningType = 'wet' | 'general' | 'repair' | 'all_inclusive';
 
 const MIN_ORDER = 6000;
+
+/* ====================== МАРЖИНАЛЬНОСТЬ ====================== */
+// Дефолты — из фин.модели (ОПУ за год). Все значения можно править
+// в калькуляторе (шестерёнка в блоке «Экономика сделки»), они
+// сохраняются локально в браузере менеджера.
+//
+// workCosts — % от цены ПО ПРАЙСУ: зависят от объёма работ,
+//   скидка их НЕ уменьшает (клинеры, материалы, транспорт, амортизация).
+// revenueCosts — % от ВАЛА (фактической цены со скидкой):
+//   бригадир, менеджер, реклама, налоги.
+const ECON_DEFAULTS = {
+  workCosts: [
+    { id: 'cleaners', label: 'ЗП клинерам', pct: 35 },
+    { id: 'materials', label: 'Расходные материалы', pct: 3.5 },
+    { id: 'transport', label: 'Транспорт', pct: 2.7 },
+    { id: 'amort', label: 'Амортизация оборудования', pct: 1 },
+  ],
+  revenueCosts: [
+    { id: 'brigadier', label: 'Бригадир (от вала)', pct: 7 },
+    { id: 'manager', label: 'Менеджер (от вала)', pct: 7 },
+    { id: 'ads', label: 'Реклама / привлечение', pct: 7.7 },
+    { id: 'tax', label: 'Налоги', pct: 1 },
+  ],
+  greenAt: 30, // маржа ≥ — зелёная зона
+  yellowAt: 20, // маржа ≥ — жёлтая зона, ниже — красная
+};
+
+const ECON_LS_KEY = 'calc_econ_constants_v1';
+
+const econDefaultValues = (): Record<string, number> => {
+  const base: Record<string, number> = {
+    greenAt: ECON_DEFAULTS.greenAt,
+    yellowAt: ECON_DEFAULTS.yellowAt,
+  };
+  [...ECON_DEFAULTS.workCosts, ...ECON_DEFAULTS.revenueCosts].forEach((c) => {
+    base[c.id] = c.pct;
+  });
+  return base;
+};
 
 const cleaningOrder: CleaningType[] = ['wet', 'general', 'repair', 'all_inclusive'];
 
@@ -202,6 +241,34 @@ const InternalCalc = () => {
   const [amoStatus, setAmoStatus] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
   const [manualPrice, setManualPrice] = useState<number | null>(null);
 
+  // Константы экономики (редактируемые, живут в localStorage браузера)
+  const [econConf, setEconConf] = useState<Record<string, number>>(() => {
+    const base = econDefaultValues();
+    try {
+      const saved = JSON.parse(localStorage.getItem(ECON_LS_KEY) || '{}');
+      return { ...base, ...saved };
+    } catch {
+      return base;
+    }
+  });
+  const [showEconSettings, setShowEconSettings] = useState(false);
+
+  const setEconVal = (k: string, v: number) => {
+    const next = { ...econConf, [k]: Math.max(0, v) };
+    setEconConf(next);
+    try {
+      localStorage.setItem(ECON_LS_KEY, JSON.stringify(next));
+    } catch {}
+  };
+
+  const resetEconConf = () => {
+    const base = econDefaultValues();
+    setEconConf(base);
+    try {
+      localStorage.removeItem(ECON_LS_KEY);
+    } catch {}
+  };
+
   const isRepair = type === 'repair';
   const filmActive = isRepair && windowFilm;
 
@@ -220,7 +287,7 @@ const InternalCalc = () => {
     const baseRaw = area > 0 ? Math.round(area * rate * k) : 0;
     const base = area > 0 ? Math.max(baseRaw, MIN_ORDER) : 0;
     if (area > 0) {
-      const kTxt = k !== 1 ? ` × ${k.toFixed(1)} (загрязнённость)` : '';
+      const kTxt = k !== 1 ? ` × ${k.toFixed(1)} (загрязнённости)` : '';
       lines.push({
         label: `${cleaningLabels[type]} уборка, ${area} м² × ${rate} ₽${kTxt}` + (base > baseRaw ? ' (минималка)' : ''),
         sum: base,
@@ -268,6 +335,54 @@ const InternalCalc = () => {
       ? Math.round((1 - manualPrice! / calc.total) * 100)
       : 0;
 
+  // ===== Экономика сделки =====
+  const econ = useMemo(() => {
+    const workPct = ECON_DEFAULTS.workCosts.reduce((a, c) => a + (econConf[c.id] || 0), 0);
+    const revPct = ECON_DEFAULTS.revenueCosts.reduce((a, c) => a + (econConf[c.id] || 0), 0);
+
+    // Затраты от объёма работ — считаем от цены по прайсу (работа та же, скидка их не уменьшает)
+    const workCost = (calc.total * workPct) / 100;
+    // Затраты от вала — от фактической цены
+    const revCost = (finalTotal * revPct) / 100;
+
+    const margin = finalTotal - workCost - revCost;
+    const marginPctVal = finalTotal > 0 ? (margin / finalTotal) * 100 : 0;
+
+    // Минимальная цена, при которой маржа не падает ниже m %
+    const minPriceFor = (m: number) => {
+      const d = 1 - revPct / 100 - m / 100;
+      return d > 0 ? workCost / d : Infinity;
+    };
+
+    const greenAt = econConf.greenAt ?? ECON_DEFAULTS.greenAt;
+    const yellowAt = econConf.yellowAt ?? ECON_DEFAULTS.yellowAt;
+
+    const status: 'green' | 'yellow' | 'red' =
+      marginPctVal >= greenAt ? 'green' : marginPctVal >= yellowAt ? 'yellow' : 'red';
+
+    return {
+      workPct,
+      revPct,
+      workCost,
+      revCost,
+      margin,
+      marginPctVal,
+      greenAt,
+      yellowAt,
+      status,
+      minGreen: minPriceFor(greenAt),
+      minYellow: minPriceFor(yellowAt),
+    };
+  }, [calc.total, finalTotal, econConf]);
+
+  const discountTo = (minPrice: number) => {
+    const d = Math.max(0, calc.total - Math.ceil(minPrice));
+    const pct = calc.total > 0 ? Math.floor((d / calc.total) * 100) : 0;
+    return { d, pct };
+  };
+  const toGreen = discountTo(econ.minGreen);
+  const toYellow = discountTo(econ.minYellow);
+
   const estimateText = useMemo(() => {
     const rows = calc.lines.map((l) => `• ${l.label} — ${fmt(l.sum)}`).join('\n');
 
@@ -312,7 +427,7 @@ const InternalCalc = () => {
         phone: client.phone,
         leadName: `Калькулятор: ${cleaningLabels[type]}, ${area} м²${dt ? ` на ${dt}` : ''}`,
         price: finalTotal,
-        note: estimateText,
+        note: `${estimateText}\n\n— — —\nВнутреннее (клиенту не отправлять):\nМаржа сделки: ${fmt(Math.round(econ.margin))} (${econ.marginPctVal.toFixed(0)}%)`,
       });
       setAmoStatus('ok');
       setTimeout(() => setAmoStatus('idle'), 4000);
@@ -594,7 +709,7 @@ const InternalCalc = () => {
             </Section>
           </div>
 
-          {/* ПРАВАЯ КОЛОНКА — СМЕТА + КЛИЕНТ */}
+          {/* ПРАВАЯ КОЛОНКА — СМЕТА + ЭКОНОМИКА + КЛИЕНТ */}
           <div className="lg:sticky lg:top-6 space-y-5">
             <div className="rounded-2xl bg-white border border-[#DDEBE8] p-5 shadow-[0_8px_40px_-12px_rgba(0,63,59,0.15)]">
               <h2 className="font-heading font-bold mb-3">Смета</h2>
@@ -655,6 +770,182 @@ const InternalCalc = () => {
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* ЭКОНОМИКА СДЕЛКИ */}
+            <div className="rounded-2xl bg-white border border-[#DDEBE8] p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-heading font-bold flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  Экономика сделки
+                </h2>
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  клиенту не показывать
+                </span>
+              </div>
+
+              {calc.lines.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Появится после расчёта.</p>
+              ) : (
+                <>
+                  <div
+                    className={`rounded-xl border p-3 ${
+                      econ.status === 'green'
+                        ? 'bg-emerald-50 border-emerald-200'
+                        : econ.status === 'yellow'
+                        ? 'bg-amber-50 border-amber-200'
+                        : 'bg-red-50 border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm font-medium">Маржа сделки</span>
+                      <span
+                        className={`font-heading font-bold text-xl whitespace-nowrap ${
+                          econ.status === 'green'
+                            ? 'text-emerald-700'
+                            : econ.status === 'yellow'
+                            ? 'text-amber-700'
+                            : 'text-red-700'
+                        }`}
+                      >
+                        {fmt(Math.round(econ.margin))} · {econ.marginPctVal.toFixed(0)}%
+                      </span>
+                    </div>
+                    <p className="text-xs mt-1 text-muted-foreground">
+                      {econ.status === 'green'
+                        ? 'Отличная сделка — есть запас на скидку.'
+                        : econ.status === 'yellow'
+                        ? 'Приемлемо, но ниже целевой маржи. Больше не скидывай.'
+                        : 'Маржа ниже минимума — скидку согласуй с руководителем!'}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                    <div className="flex justify-between gap-2">
+                      <span>Затраты от объёма работ ({econ.workPct.toFixed(1)}% от прайса)</span>
+                      <span className="whitespace-nowrap">{fmt(Math.round(econ.workCost))}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span>Затраты от вала ({econ.revPct.toFixed(1)}%)</span>
+                      <span className="whitespace-nowrap">{fmt(Math.round(econ.revCost))}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-dashed border-[#DDEBE8] text-xs space-y-1.5">
+                    <p>
+                      🟢 Скидка до <b>{fmt(toGreen.d)}</b> ({toGreen.pct}%) — маржа останется ≥ {econ.greenAt}%
+                    </p>
+                    <p>
+                      🟡 Максимум <b>{fmt(toYellow.d)}</b> ({toYellow.pct}%) — маржа ≥ {econ.yellowAt}%.
+                      Ниже — только через руководителя.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowEconSettings(!showEconSettings)}
+                    className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
+                  >
+                    <Settings2 className="w-3.5 h-3.5" />
+                    {showEconSettings ? 'Скрыть константы' : 'Константы (настроить %)'}
+                  </button>
+
+                  {showEconSettings && (
+                    <div className="mt-3 pt-3 border-t border-[#DDEBE8] space-y-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                          % от прайса (объём работ, скидка не уменьшает)
+                        </p>
+                        <div className="space-y-1.5">
+                          {ECON_DEFAULTS.workCosts.map((c) => (
+                            <div key={c.id} className="flex items-center justify-between gap-2">
+                              <span className="text-xs">{c.label}</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={0.1}
+                                  value={econConf[c.id] ?? 0}
+                                  onChange={(e) => setEconVal(c.id, Number(e.target.value) || 0)}
+                                  className="w-16 h-7 text-xs text-right px-1.5"
+                                />
+                                <span className="text-xs text-muted-foreground">%</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                          % от вала (фактической цены)
+                        </p>
+                        <div className="space-y-1.5">
+                          {ECON_DEFAULTS.revenueCosts.map((c) => (
+                            <div key={c.id} className="flex items-center justify-between gap-2">
+                              <span className="text-xs">{c.label}</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={0.1}
+                                  value={econConf[c.id] ?? 0}
+                                  onChange={(e) => setEconVal(c.id, Number(e.target.value) || 0)}
+                                  className="w-16 h-7 text-xs text-right px-1.5"
+                                />
+                                <span className="text-xs text-muted-foreground">%</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                          Пороги светофора (маржа, %)
+                        </p>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs">🟢 Зелёная зона от</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Input
+                                type="number"
+                                min={0}
+                                value={econConf.greenAt ?? ECON_DEFAULTS.greenAt}
+                                onChange={(e) => setEconVal('greenAt', Number(e.target.value) || 0)}
+                                className="w-16 h-7 text-xs text-right px-1.5"
+                              />
+                              <span className="text-xs text-muted-foreground">%</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs">🟡 Жёлтая зона от</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Input
+                                type="number"
+                                min={0}
+                                value={econConf.yellowAt ?? ECON_DEFAULTS.yellowAt}
+                                onChange={(e) => setEconVal('yellowAt', Number(e.target.value) || 0)}
+                                className="w-16 h-7 text-xs text-right px-1.5"
+                              />
+                              <span className="text-xs text-muted-foreground">%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={resetEconConf}
+                        className="text-xs text-muted-foreground underline hover:text-primary"
+                      >
+                        Сбросить к дефолтам из фин.модели
+                      </button>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Константы сохраняются в этом браузере. Постоянка (офис, склад, управляющий
+                        и т.д.) ≈ 125 000 ₽/мес — в маржу сделки не входит.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             <div className="rounded-2xl bg-white border border-[#DDEBE8] p-5">

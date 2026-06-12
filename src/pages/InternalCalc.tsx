@@ -2,7 +2,47 @@ import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Minus, Plus, Copy, Check, AlertTriangle, Calculator } from 'lucide-react';
+import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send } from 'lucide-react';
+
+/* ====================== AMO CRM ====================== */
+
+const AMO_FORM = {
+  url: 'https://forms.amocrm.ru/queue/add',
+  id: '1721178',
+  hash: 'c3be832a2e589205570c43f4bcb9abe1',
+  nameField: 'fields[name_1]',
+  phoneField: 'fields[1159022_1][1392964]',
+  leadNameField: 'fields[name_2]',
+  priceField: 'fields[price_2]',
+  noteField: 'fields[note_2]',
+};
+
+async function sendToAmo(payload: {
+  contactName: string;
+  phone: string;
+  leadName: string;
+  price: number;
+  note: string;
+}) {
+  const fd = new FormData();
+  fd.append('form_id', AMO_FORM.id);
+  fd.append('hash', AMO_FORM.hash);
+  fd.append(
+    'user_origin',
+    JSON.stringify({
+      datetime: new Date().toString(),
+      timezone: 'Europe/Moscow',
+      referer: '/calc',
+    })
+  );
+  fd.append(AMO_FORM.nameField, payload.contactName);
+  fd.append(AMO_FORM.phoneField, payload.phone);
+  fd.append(AMO_FORM.leadNameField, payload.leadName);
+  fd.append(AMO_FORM.priceField, String(payload.price));
+  fd.append(AMO_FORM.noteField, payload.note);
+
+  await fetch(AMO_FORM.url, { method: 'POST', mode: 'no-cors', body: fd });
+}
 
 /* ====================== ПРАЙС ====================== */
 
@@ -159,6 +199,7 @@ const InternalCalc = () => {
   const setC = (k: keyof typeof client, v: string) => setClient({ ...client, [k]: v });
 
   const [copied, setCopied] = useState(false);
+  const [amoStatus, setAmoStatus] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
 
   const isRepair = type === 'repair';
   const filmActive = isRepair && windowFilm;
@@ -245,6 +286,29 @@ const InternalCalc = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {}
+  };
+
+  const amoReady = client.phone.replace(/\D/g, '').length >= 10 && calc.lines.length > 0;
+
+  const submitToAmo = async () => {
+    if (!amoReady || amoStatus === 'sending') return;
+    try {
+      setAmoStatus('sending');
+      const dt = [client.date, client.time].filter(Boolean).join(' ');
+      await sendToAmo({
+        contactName: client.name || 'Без имени',
+        phone: client.phone,
+        leadName: `Калькулятор: ${cleaningLabels[type]}, ${area} м²${dt ? ` на ${dt}` : ''}`,
+        price: calc.total,
+        note: estimateText,
+      });
+      setAmoStatus('ok');
+      setTimeout(() => setAmoStatus('idle'), 4000);
+    } catch (e) {
+      console.error(e);
+      setAmoStatus('err');
+      setTimeout(() => setAmoStatus('idle'), 4000);
+    }
   };
 
   const reset = () => {
@@ -587,7 +651,26 @@ const InternalCalc = () => {
               </div>
 
               <div className="mt-4 grid gap-2">
-                <Button onClick={copyEstimate} className="w-full rounded-xl hero-gradient text-white" disabled={calc.lines.length === 0}>
+                <Button
+                  onClick={submitToAmo}
+                  className="w-full rounded-xl bg-[#0C7C8C] hover:bg-[#0a6b79] text-white"
+                  disabled={!amoReady || amoStatus === 'sending'}
+                >
+                  {amoStatus === 'ok' ? <Check className="w-4 h-4 mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                  {amoStatus === 'sending'
+                    ? 'Отправляем...'
+                    : amoStatus === 'ok'
+                    ? 'Сделка создана в amoCRM!'
+                    : amoStatus === 'err'
+                    ? 'Ошибка — попробуй ещё раз'
+                    : 'Отправить в amoCRM'}
+                </Button>
+                {!amoReady && calc.lines.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground text-center -mt-1">
+                    Для отправки в amoCRM заполни телефон клиента
+                  </p>
+                )}
+                <Button onClick={copyEstimate} variant="outline" className="w-full rounded-xl border-[#DDEBE8]" disabled={calc.lines.length === 0}>
                   {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
                   {copied ? 'Скопировано!' : 'Скопировать смету + данные'}
                 </Button>

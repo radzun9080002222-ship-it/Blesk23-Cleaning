@@ -55,15 +55,21 @@ const MIN_ORDER = 6000;
 // в калькуляторе (шестерёнка в блоке «Экономика сделки»), они
 // сохраняются локально в браузере менеджера.
 //
-// workCosts — % от цены ПО ПРАЙСУ (клинеры — от уборки БЕЗ химчистки):
-//   зависят от объёма работ, скидка их НЕ уменьшает.
+// Клинеры — фикс за человека: норматив м²/клинер по типу уборки, допуск +3 м².
+// workCosts — % от цены ПО ПРАЙСУ: зависят от объёма работ, скидка их НЕ уменьшает.
 // dryCosts — % от суммы химчистки по прайсу (бригадир делает её сам).
 // revenueCosts — % от ВАЛА (фактической цены со скидкой):
 //   бригадир 7%, менеджер, реклама, налоги.
 // Фикс бригадира 60 000 ₽/мес — в постоянке, в сделку не входит.
 const ECON_DEFAULTS = {
+  cleanerNorms: [
+    { id: 'wet', label: 'Влажная', area: 100, pay: 2500 },
+    { id: 'general', label: 'Генеральная', area: 30, pay: 3000 },
+    { id: 'repair', label: 'После ремонта', area: 25, pay: 3500 },
+    { id: 'all_inclusive', label: 'Всё включено', area: 25, pay: 3500 },
+  ],
+  cleanerTolerance: 3, // допустимый перебор м² на клинера
   workCosts: [
-    { id: 'cleaners', label: 'ЗП клинерам (от уборки без химчистки)', pct: 35 },
     { id: 'materials', label: 'Расходные материалы', pct: 3.5 },
     { id: 'transport', label: 'Транспорт', pct: 2.7 },
     { id: 'amort', label: 'Амортизация оборудования', pct: 1 },
@@ -90,6 +96,10 @@ const econDefaultValues = (): Record<string, number> => {
   };
   [...ECON_DEFAULTS.workCosts, ...ECON_DEFAULTS.dryCosts, ...ECON_DEFAULTS.revenueCosts].forEach((c) => {
     base[c.id] = c.pct;
+  });
+  ECON_DEFAULTS.cleanerNorms.forEach((n) => {
+    base['norm_' + n.id] = n.area;
+    base['pay_' + n.id] = n.pay;
   });
   return base;
 };
@@ -347,17 +357,16 @@ const InternalCalc = () => {
 
   // ===== Экономика сделки =====
   const econ = useMemo(() => {
-    const cleanersPct = econConf.cleaners || 0;
-    const otherWorkPct = ECON_DEFAULTS.workCosts
-      .filter((c) => c.id !== 'cleaners')
-      .reduce((a, c) => a + (econConf[c.id] || 0), 0);
+    const otherWorkPct = ECON_DEFAULTS.workCosts.reduce((a, c) => a + (econConf[c.id] || 0), 0);
     const dryPct = ECON_DEFAULTS.dryCosts.reduce((a, c) => a + (econConf[c.id] || 0), 0);
     const revPct = ECON_DEFAULTS.revenueCosts.reduce((a, c) => a + (econConf[c.id] || 0), 0);
 
-    // Затраты от объёма работ — от цены по прайсу (работа та же, скидка их не уменьшает).
-    // Клинеры — только от уборки (без химчистки: её делает бригадир).
-    const cleanBase = Math.max(0, calc.total - calc.dryTotal);
-    const cleanersCost = (cleanBase * cleanersPct) / 100;
+    // Клинеры — фикс за человека: норматив м²/клинер по типу уборки (+3 м² ок)
+    const norm = econConf['norm_' + type] || 100;
+    const pay = econConf['pay_' + type] || 0;
+    const cleanersCount =
+      area > 0 ? Math.max(1, Math.ceil((area - ECON_DEFAULTS.cleanerTolerance) / Math.max(1, norm))) : 0;
+    const cleanersCost = cleanersCount * pay;
     const otherWorkCost = (calc.total * otherWorkPct) / 100;
     // Бригадиру — % от химчистки по прайсу
     const dryCost = (calc.dryTotal * dryPct) / 100;
@@ -381,7 +390,10 @@ const InternalCalc = () => {
       marginPctVal >= greenAt ? 'green' : marginPctVal >= yellowAt ? 'yellow' : 'red';
 
     return {
-      workPct: calc.total > 0 ? ((cleanersCost + otherWorkCost) / calc.total) * 100 : 0,
+      workPct: calc.total > 0 ? (otherWorkCost / calc.total) * 100 : 0,
+      cleanersCount,
+      cleanersPay: pay,
+      cleanersCost,
       dryPct,
       revPct,
       workCost,
@@ -396,7 +408,7 @@ const InternalCalc = () => {
       minGreen: minPriceFor(greenAt),
       minYellow: minPriceFor(yellowAt),
     };
-  }, [calc.total, calc.dryTotal, finalTotal, econConf]);
+  }, [calc.total, calc.dryTotal, finalTotal, econConf, type, area]);
 
   const discountTo = (minPrice: number) => {
     const d = Math.max(0, calc.total - Math.ceil(minPrice));
@@ -845,8 +857,12 @@ const InternalCalc = () => {
 
                   <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                     <div className="flex justify-between gap-2">
-                      <span>Клинеры, материалы, транспорт, амортизация ({econ.workPct.toFixed(1)}% от прайса)</span>
-                      <span className="whitespace-nowrap">{fmt(Math.round(econ.cleanWorkCost))}</span>
+                      <span>Клинеры: {econ.cleanersCount} чел. × {fmt(econ.cleanersPay)}</span>
+                      <span className="whitespace-nowrap">{fmt(Math.round(econ.cleanersCost))}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span>Материалы, транспорт, амортизация ({econ.workPct.toFixed(1)}% от прайса)</span>
+                      <span className="whitespace-nowrap">{fmt(Math.round(econ.cleanWorkCost - econ.cleanersCost))}</span>
                     </div>
                     {econ.dryCost > 0 && (
                       <div className="flex justify-between gap-2">
@@ -881,6 +897,37 @@ const InternalCalc = () => {
 
                   {showEconSettings && (
                     <div className="mt-3 pt-3 border-t border-[#DDEBE8] space-y-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                          Клинеры: м² на человека / оплата (+3 м² допуск)
+                        </p>
+                        <div className="space-y-1.5">
+                          {ECON_DEFAULTS.cleanerNorms.map((n) => (
+                            <div key={n.id} className="flex items-center justify-between gap-2">
+                              <span className="text-xs">{n.label}</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={econConf['norm_' + n.id] ?? n.area}
+                                  onChange={(e) => setEconVal('norm_' + n.id, Number(e.target.value) || 0)}
+                                  className="w-14 h-7 text-xs text-right px-1.5"
+                                />
+                                <span className="text-[10px] text-muted-foreground">м²</span>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={100}
+                                  value={econConf['pay_' + n.id] ?? n.pay}
+                                  onChange={(e) => setEconVal('pay_' + n.id, Number(e.target.value) || 0)}
+                                  className="w-16 h-7 text-xs text-right px-1.5"
+                                />
+                                <span className="text-[10px] text-muted-foreground">₽</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                           % от прайса (объём работ, скидка не уменьшает)

@@ -255,6 +255,8 @@ const InternalCalc = () => {
   const [copied, setCopied] = useState(false);
   const [amoStatus, setAmoStatus] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
   const [manualPrice, setManualPrice] = useState<number | null>(null);
+  // Ручная корректировка числа клинеров (null — авто по нормативу)
+  const [cleanersOverride, setCleanersOverride] = useState<number | null>(null);
 
   // Константы экономики (редактируемые, живут в localStorage браузера)
   const [econConf, setEconConf] = useState<Record<string, number>>(() => {
@@ -289,6 +291,7 @@ const InternalCalc = () => {
 
   const switchType = (t: CleaningType) => {
     setType(t);
+    setCleanersOverride(null);
     setPanoramicPrice(t === 'repair' ? windowPrices.panoramic.repair : windowPrices.panoramic.usual);
     if (t !== 'repair') setWindowFilm(false);
   };
@@ -364,8 +367,9 @@ const InternalCalc = () => {
     // Клинеры — фикс за человека: норматив м²/клинер по типу уборки (+3 м² ок)
     const norm = econConf['norm_' + type] || 100;
     const pay = econConf['pay_' + type] || 0;
-    const cleanersCount =
+    const autoCleaners =
       area > 0 ? Math.max(1, Math.ceil((area - ECON_DEFAULTS.cleanerTolerance) / Math.max(1, norm))) : 0;
+    const cleanersCount = cleanersOverride ?? autoCleaners;
     const cleanersCost = cleanersCount * pay;
     const otherWorkCost = (calc.total * otherWorkPct) / 100;
     // Бригадиру — % от химчистки по прайсу
@@ -392,6 +396,7 @@ const InternalCalc = () => {
     return {
       workPct: calc.total > 0 ? (otherWorkCost / calc.total) * 100 : 0,
       cleanersCount,
+      autoCleaners,
       cleanersPay: pay,
       cleanersCost,
       dryPct,
@@ -408,7 +413,7 @@ const InternalCalc = () => {
       minGreen: minPriceFor(greenAt),
       minYellow: minPriceFor(yellowAt),
     };
-  }, [calc.total, calc.dryTotal, finalTotal, econConf, type, area]);
+  }, [calc.total, calc.dryTotal, finalTotal, econConf, type, area, cleanersOverride]);
 
   const discountTo = (minPrice: number) => {
     const d = Math.max(0, calc.total - Math.ceil(minPrice));
@@ -486,6 +491,7 @@ const InternalCalc = () => {
     setPolyana(false);
     setBathrooms(0);
     setManualPrice(null);
+    setCleanersOverride(null);
     setClient({ date: '', time: '', name: '', phone: '', address: '', floor: '', apartment: '', intercom: '', note: '' });
   };
 
@@ -541,7 +547,10 @@ const InternalCalc = () => {
                     min={0}
                     max={1000}
                     value={area || ''}
-                    onChange={(e) => setArea(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
+                    onChange={(e) => {
+                      setArea(Math.max(0, Math.min(1000, Number(e.target.value) || 0)));
+                      setCleanersOverride(null);
+                    }}
                     className="w-24 h-10"
                   />
                 </div>
@@ -856,8 +865,23 @@ const InternalCalc = () => {
                   </div>
 
                   <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-                    <div className="flex justify-between gap-2">
-                      <span>Клинеры: {econ.cleanersCount} чел. × {fmt(econ.cleanersPay)}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 flex-wrap">
+                        Клинеры × {fmt(econ.cleanersPay)}
+                        <Counter
+                          value={econ.cleanersCount}
+                          onChange={(v) => setCleanersOverride(v === econ.autoCleaners ? null : v)}
+                        />
+                        {cleanersOverride !== null && cleanersOverride !== econ.autoCleaners && (
+                          <button
+                            type="button"
+                            onClick={() => setCleanersOverride(null)}
+                            className="text-[10px] underline text-muted-foreground hover:text-primary"
+                          >
+                            авто: {econ.autoCleaners}
+                          </button>
+                        )}
+                      </span>
                       <span className="whitespace-nowrap">{fmt(Math.round(econ.cleanersCost))}</span>
                     </div>
                     <div className="flex justify-between gap-2">

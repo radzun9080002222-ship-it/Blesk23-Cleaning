@@ -55,16 +55,21 @@ const MIN_ORDER = 6000;
 // в калькуляторе (шестерёнка в блоке «Экономика сделки»), они
 // сохраняются локально в браузере менеджера.
 //
-// workCosts — % от цены ПО ПРАЙСУ: зависят от объёма работ,
-//   скидка их НЕ уменьшает (клинеры, материалы, транспорт, амортизация).
+// workCosts — % от цены ПО ПРАЙСУ (клинеры — от уборки БЕЗ химчистки):
+//   зависят от объёма работ, скидка их НЕ уменьшает.
+// dryCosts — % от суммы химчистки по прайсу (бригадир делает её сам).
 // revenueCosts — % от ВАЛА (фактической цены со скидкой):
-//   бригадир, менеджер, реклама, налоги.
+//   бригадир 7%, менеджер, реклама, налоги.
+// Фикс бригадира 60 000 ₽/мес — в постоянке, в сделку не входит.
 const ECON_DEFAULTS = {
   workCosts: [
-    { id: 'cleaners', label: 'ЗП клинерам', pct: 35 },
+    { id: 'cleaners', label: 'ЗП клинерам (от уборки без химчистки)', pct: 35 },
     { id: 'materials', label: 'Расходные материалы', pct: 3.5 },
     { id: 'transport', label: 'Транспорт', pct: 2.7 },
     { id: 'amort', label: 'Амортизация оборудования', pct: 1 },
+  ],
+  dryCosts: [
+    { id: 'brigadierDry', label: 'Бригадир с химчистки', pct: 50 },
   ],
   revenueCosts: [
     { id: 'brigadier', label: 'Бригадир (от вала)', pct: 7 },
@@ -83,7 +88,7 @@ const econDefaultValues = (): Record<string, number> => {
     greenAt: ECON_DEFAULTS.greenAt,
     yellowAt: ECON_DEFAULTS.yellowAt,
   };
-  [...ECON_DEFAULTS.workCosts, ...ECON_DEFAULTS.revenueCosts].forEach((c) => {
+  [...ECON_DEFAULTS.workCosts, ...ECON_DEFAULTS.dryCosts, ...ECON_DEFAULTS.revenueCosts].forEach((c) => {
     base[c.id] = c.pct;
   });
   return base;
@@ -315,9 +320,14 @@ const InternalCalc = () => {
     if (wardrobeExtra > 0) lines.push({ label: 'Шкафы/комоды внутри (фикс)', sum: wardrobeExtra });
 
     // Химчистка
+    let dryTotal = 0;
     dryCleaning.forEach((s) => {
       const count = dry[s.id] || 0;
-      if (count > 0) lines.push({ label: `Химчистка: ${s.label} × ${count}`, sum: count * s.price });
+      if (count > 0) {
+        const sum = count * s.price;
+        dryTotal += sum;
+        lines.push({ label: `Химчистка: ${s.label} × ${count}`, sum });
+      }
     });
 
     if (bathrooms > 0) lines.push({ label: `Отдельный санузел/ванная × ${bathrooms}`, sum: bathrooms * 6000 });
@@ -325,7 +335,7 @@ const InternalCalc = () => {
     if (polyana) lines.push({ label: 'Выезд на Красную Поляну', sum: 2000 });
 
     const total = lines.reduce((a, l) => a + l.sum, 0);
-    return { lines, total };
+    return { lines, total, dryTotal };
   }, [type, area, dirt, win, panoramicPrice, filmActive, isRepair, extras, wardrobeExtra, dry, mold, polyana, bathrooms]);
 
   const finalTotal = manualPrice ?? calc.total;
@@ -337,11 +347,21 @@ const InternalCalc = () => {
 
   // ===== Экономика сделки =====
   const econ = useMemo(() => {
-    const workPct = ECON_DEFAULTS.workCosts.reduce((a, c) => a + (econConf[c.id] || 0), 0);
+    const cleanersPct = econConf.cleaners || 0;
+    const otherWorkPct = ECON_DEFAULTS.workCosts
+      .filter((c) => c.id !== 'cleaners')
+      .reduce((a, c) => a + (econConf[c.id] || 0), 0);
+    const dryPct = ECON_DEFAULTS.dryCosts.reduce((a, c) => a + (econConf[c.id] || 0), 0);
     const revPct = ECON_DEFAULTS.revenueCosts.reduce((a, c) => a + (econConf[c.id] || 0), 0);
 
-    // Затраты от объёма работ — считаем от цены по прайсу (работа та же, скидка их не уменьшает)
-    const workCost = (calc.total * workPct) / 100;
+    // Затраты от объёма работ — от цены по прайсу (работа та же, скидка их не уменьшает).
+    // Клинеры — только от уборки (без химчистки: её делает бригадир).
+    const cleanBase = Math.max(0, calc.total - calc.dryTotal);
+    const cleanersCost = (cleanBase * cleanersPct) / 100;
+    const otherWorkCost = (calc.total * otherWorkPct) / 100;
+    // Бригадиру — % от химчистки по прайсу
+    const dryCost = (calc.dryTotal * dryPct) / 100;
+    const workCost = cleanersCost + otherWorkCost + dryCost;
     // Затраты от вала — от фактической цены
     const revCost = (finalTotal * revPct) / 100;
 
@@ -361,9 +381,12 @@ const InternalCalc = () => {
       marginPctVal >= greenAt ? 'green' : marginPctVal >= yellowAt ? 'yellow' : 'red';
 
     return {
-      workPct,
+      workPct: calc.total > 0 ? ((cleanersCost + otherWorkCost) / calc.total) * 100 : 0,
+      dryPct,
       revPct,
       workCost,
+      cleanWorkCost: cleanersCost + otherWorkCost,
+      dryCost,
       revCost,
       margin,
       marginPctVal,
@@ -373,7 +396,7 @@ const InternalCalc = () => {
       minGreen: minPriceFor(greenAt),
       minYellow: minPriceFor(yellowAt),
     };
-  }, [calc.total, finalTotal, econConf]);
+  }, [calc.total, calc.dryTotal, finalTotal, econConf]);
 
   const discountTo = (minPrice: number) => {
     const d = Math.max(0, calc.total - Math.ceil(minPrice));
@@ -822,9 +845,15 @@ const InternalCalc = () => {
 
                   <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                     <div className="flex justify-between gap-2">
-                      <span>Затраты от объёма работ ({econ.workPct.toFixed(1)}% от прайса)</span>
-                      <span className="whitespace-nowrap">{fmt(Math.round(econ.workCost))}</span>
+                      <span>Клинеры, материалы, транспорт, амортизация ({econ.workPct.toFixed(1)}% от прайса)</span>
+                      <span className="whitespace-nowrap">{fmt(Math.round(econ.cleanWorkCost))}</span>
                     </div>
+                    {econ.dryCost > 0 && (
+                      <div className="flex justify-between gap-2">
+                        <span>Бригадир с химчистки ({econ.dryPct.toFixed(0)}%)</span>
+                        <span className="whitespace-nowrap">{fmt(Math.round(econ.dryCost))}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between gap-2">
                       <span>Затраты от вала ({econ.revPct.toFixed(1)}%)</span>
                       <span className="whitespace-nowrap">{fmt(Math.round(econ.revCost))}</span>
@@ -858,6 +887,29 @@ const InternalCalc = () => {
                         </p>
                         <div className="space-y-1.5">
                           {ECON_DEFAULTS.workCosts.map((c) => (
+                            <div key={c.id} className="flex items-center justify-between gap-2">
+                              <span className="text-xs">{c.label}</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={0.1}
+                                  value={econConf[c.id] ?? 0}
+                                  onChange={(e) => setEconVal(c.id, Number(e.target.value) || 0)}
+                                  className="w-16 h-7 text-xs text-right px-1.5"
+                                />
+                                <span className="text-xs text-muted-foreground">%</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                          % с химчистки (по прайсу)
+                        </p>
+                        <div className="space-y-1.5">
+                          {ECON_DEFAULTS.dryCosts.map((c) => (
                             <div key={c.id} className="flex items-center justify-between gap-2">
                               <span className="text-xs">{c.label}</span>
                               <div className="flex items-center gap-1 shrink-0">
@@ -939,8 +991,8 @@ const InternalCalc = () => {
                         Сбросить к дефолтам из фин.модели
                       </button>
                       <p className="text-[11px] text-muted-foreground leading-snug">
-                        Константы сохраняются в этом браузере. Постоянка (офис, склад, управляющий
-                        и т.д.) ≈ 125 000 ₽/мес — в маржу сделки не входит.
+                        Константы сохраняются в этом браузере. Постоянка (офис, склад, управляющий,
+                        фикс бригадира 60 000 ₽ и т.д.) ≈ 185 000 ₽/мес — в маржу сделки не входит.
                       </p>
                     </div>
                   )}

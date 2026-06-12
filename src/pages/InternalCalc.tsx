@@ -200,6 +200,7 @@ const InternalCalc = () => {
 
   const [copied, setCopied] = useState(false);
   const [amoStatus, setAmoStatus] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
+  const [manualPrice, setManualPrice] = useState<number | null>(null);
 
   const isRepair = type === 'repair';
   const filmActive = isRepair && windowFilm;
@@ -260,6 +261,13 @@ const InternalCalc = () => {
     return { lines, total };
   }, [type, area, dirt, win, panoramicPrice, filmActive, isRepair, extras, wardrobeExtra, dry, mold, polyana, bathrooms]);
 
+  const finalTotal = manualPrice ?? calc.total;
+  const hasDiscount = manualPrice !== null && manualPrice !== calc.total;
+  const discountPct =
+    hasDiscount && calc.total > 0 && manualPrice! < calc.total
+      ? Math.round((1 - manualPrice! / calc.total) * 100)
+      : 0;
+
   const estimateText = useMemo(() => {
     const rows = calc.lines.map((l) => `• ${l.label} — ${fmt(l.sum)}`).join('\n');
 
@@ -277,8 +285,12 @@ const InternalCalc = () => {
     if (client.note) info.push(`Дополнительно: ${client.note}`);
     const infoBlock = info.length ? `\n\nДанные клиента:\n${info.join('\n')}` : '';
 
-    return `Расчёт стоимости уборки «Империя Блеска»\n\n${rows}\n\nИТОГО: ${fmt(calc.total)}${infoBlock}\n\nЦену фиксируем до начала работ. Оплата после приёмки по чек-листу.`;
-  }, [calc, client]);
+    const totalBlock = hasDiscount
+      ? `ИТОГО по прайсу: ${fmt(calc.total)}\nЦЕНА ДЛЯ ВАС: ${fmt(finalTotal)}${discountPct > 0 ? ` (скидка ${discountPct}%)` : ''}`
+      : `ИТОГО: ${fmt(calc.total)}`;
+
+    return `Расчёт стоимости уборки «Империя Блеска»\n\n${rows}\n\n${totalBlock}${infoBlock}\n\nЦену фиксируем до начала работ. Оплата после приёмки по чек-листу.`;
+  }, [calc, client, hasDiscount, finalTotal, discountPct]);
 
   const copyEstimate = async () => {
     try {
@@ -299,7 +311,7 @@ const InternalCalc = () => {
         contactName: client.name || 'Без имени',
         phone: client.phone,
         leadName: `Калькулятор: ${cleaningLabels[type]}, ${area} м²${dt ? ` на ${dt}` : ''}`,
-        price: calc.total,
+        price: finalTotal,
         note: estimateText,
       });
       setAmoStatus('ok');
@@ -323,6 +335,7 @@ const InternalCalc = () => {
     setMold(false);
     setPolyana(false);
     setBathrooms(0);
+    setManualPrice(null);
     setClient({ date: '', time: '', name: '', phone: '', address: '', floor: '', apartment: '', intercom: '', note: '' });
   };
 
@@ -598,8 +611,49 @@ const InternalCalc = () => {
                 </div>
               )}
               <div className="border-t border-[#DDEBE8] mt-4 pt-4 flex items-baseline justify-between">
-                <span className="font-heading font-bold text-lg">Итого</span>
-                <span className="font-heading font-bold text-3xl text-primary">{fmt(calc.total)}</span>
+                <span className="font-heading font-bold text-lg">Итого по прайсу</span>
+                <span className={`font-heading font-bold ${hasDiscount ? 'text-xl text-muted-foreground line-through' : 'text-3xl text-primary'}`}>
+                  {fmt(calc.total)}
+                </span>
+              </div>
+              <div className="mt-3 pt-3 border-t border-dashed border-[#DDEBE8]">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Ручная корректировка / цена со скидкой</p>
+                    {hasDiscount && discountPct > 0 && (
+                      <p className="text-xs text-primary font-medium mt-0.5">
+                        скидка {discountPct}% (−{fmt(calc.total - finalTotal)})
+                      </p>
+                    )}
+                    {hasDiscount && manualPrice! > calc.total && (
+                      <p className="text-xs text-amber-600 font-medium mt-0.5">
+                        наценка +{fmt(finalTotal - calc.total)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={finalTotal || ''}
+                      onChange={(e) => {
+                        const v = Math.max(0, Number(e.target.value) || 0);
+                        setManualPrice(v === calc.total ? null : v);
+                      }}
+                      className="w-32 h-10 text-right font-heading font-bold text-primary"
+                    />
+                    <span className="text-sm font-medium">₽</span>
+                  </div>
+                </div>
+                {hasDiscount && (
+                  <button
+                    type="button"
+                    onClick={() => setManualPrice(null)}
+                    className="text-xs text-muted-foreground underline mt-1.5 hover:text-primary"
+                  >
+                    Вернуть расчётную цену
+                  </button>
+                )}
               </div>
             </div>
 

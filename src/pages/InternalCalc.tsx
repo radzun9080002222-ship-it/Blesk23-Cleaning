@@ -6,13 +6,15 @@ import { Minus, Plus, Copy, Check, AlertTriangle, Calculator } from 'lucide-reac
 
 /* ====================== ПРАЙС ====================== */
 
-type CleaningType = 'general' | 'wet' | 'repair' | 'all_inclusive';
+type CleaningType = 'wet' | 'general' | 'repair' | 'all_inclusive';
 
 const MIN_ORDER = 6000;
 
+const cleaningOrder: CleaningType[] = ['wet', 'general', 'repair', 'all_inclusive'];
+
 const cleaningLabels: Record<CleaningType, string> = {
-  general: 'Генеральная',
   wet: 'Влажная',
+  general: 'Генеральная',
   repair: 'После ремонта',
   all_inclusive: 'Всё включено',
 };
@@ -41,40 +43,42 @@ const rateFor = (type: CleaningType, area: number): number => {
 // Окна: [обычная уборка, после ремонта]
 const windowPrices = {
   panoramic: { label: 'Панорамная створка (в пол)', usual: 1200, repair: 2000, note: 'обычно 900–1200 / 1500–2000 ₽, правь цену под объект' },
-  standard: { label: 'Стандартная створка', usual: 500, repair: 750, note: 'после ремонта дороже при плёнке и сильной грязи' },
+  standard: { label: 'Стандартная створка', usual: 500, repair: 750 },
   mini: { label: 'Мини-окно', usual: 400, repair: 500 },
   balconyDoor: { label: 'Балконная дверь', usual: 1200, repair: 1500 },
 };
 
+// Порядок: техника внутри → шкафы → шторы/бельё → люстры → кондиционер → швы
 const extraServices = [
-  { id: 'kitchen_cabinet', label: 'Кухонный шкаф внутри', price: 250, unit: 'шт' },
   { id: 'fridge', label: 'Холодильник внутри', price: 900, unit: 'шт' },
   { id: 'fridge2', label: 'Двухкамерный холодильник', price: 1800, unit: 'шт' },
   { id: 'oven', label: 'Духовой шкаф внутри', price: 900, unit: 'шт' },
   { id: 'microwave', label: 'Микроволновка', price: 500, unit: 'шт' },
   { id: 'hood', label: 'Вытяжка', price: 700, unit: 'шт' },
-  { id: 'ironing', label: 'Глажка белья (есть ли утюг у клиента?)', price: 800, unit: 'час' },
+  { id: 'kitchen_cabinet', label: 'Кухонный шкаф внутри', price: 250, unit: 'шт' },
   { id: 'curtains_wash', label: 'Шторы: постирать и повесить', price: 1500, unit: 'окно' },
   { id: 'curtains_iron', label: 'Шторы: погладить', price: 1000, unit: 'окно' },
+  { id: 'ironing', label: 'Глажка белья (есть ли утюг у клиента?)', price: 800, unit: 'час' },
+  { id: 'linen', label: 'Смена белья (за всё)', price: 500, unit: 'раз' },
   { id: 'chandelier', label: 'Люстра обычная', price: 500, unit: 'шт' },
   { id: 'chandelier_big', label: 'Люстра большая', price: 1500, unit: 'шт' },
   { id: 'ac', label: 'Кондиционер (сетка)', price: 500, unit: 'шт' },
-  { id: 'linen', label: 'Смена белья (за всё)', price: 500, unit: 'раз' },
   { id: 'seams', label: 'Швы отпаривателем', price: 3000, unit: 'комната' },
 ] as const;
 
+// Порядок: диваны + к ним выдвижное и подушки → матрасы → кресла → стулья → остальное
 const dryCleaning = [
   { id: 'sofa2', label: 'Диван двухместный', price: 3500 },
   { id: 'sofa3', label: 'Диван трёхместный', price: 5000 },
   { id: 'sofa_corner', label: 'Диван угловой', price: 7500 },
+  { id: 'sofa_slide', label: 'Выдвижное место дивана', price: 800 },
+  { id: 'pillow', label: 'Подушка', price: 400 },
   { id: 'mattress', label: 'Матрас (одна сторона)', price: 2800 },
   { id: 'armchair', label: 'Кресло', price: 1200 },
   { id: 'chair', label: 'Стул', price: 450 },
   { id: 'headboard', label: 'Изголовье кровати', price: 1200 },
   { id: 'pouf', label: 'Пуф', price: 550 },
   { id: 'bench', label: 'Банкетка', price: 1200 },
-  { id: 'sofa_slide', label: 'Выдвижное место дивана', price: 800 },
-  { id: 'pillow', label: 'Подушка', price: 400 },
   { id: 'carseat', label: 'Автокресло', price: 1500 },
   { id: 'stroller', label: 'Коляска детская', price: 2500 },
 ] as const;
@@ -119,14 +123,18 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
   </div>
 );
 
+const clampDirt = (v: number) => Math.min(3, Math.max(1, v));
+
 /* ====================== СТРАНИЦА ====================== */
 
 const InternalCalc = () => {
-  const [type, setType] = useState<CleaningType>('general');
+  const [type, setType] = useState<CleaningType>('wet');
   const [area, setArea] = useState<number>(50);
+  const [dirt, setDirt] = useState<number>(1.0);
 
   const [win, setWin] = useState({ panoramic: 0, standard: 0, mini: 0, balconyDoor: 0 });
   const [panoramicPrice, setPanoramicPrice] = useState<number>(windowPrices.panoramic.usual);
+  const [windowFilm, setWindowFilm] = useState(false);
 
   const [extras, setExtras] = useState<Record<string, number>>({});
   const [wardrobeExtra, setWardrobeExtra] = useState<0 | 2000 | 2500>(0);
@@ -134,37 +142,60 @@ const InternalCalc = () => {
 
   const [mold, setMold] = useState(false);
   const [polyana, setPolyana] = useState(false);
-  const [bathrooms, setBathrooms] = useState(0); // отдельные санузлы без уборки квартиры
+  const [bathrooms, setBathrooms] = useState(0);
+
+  // Данные клиента
+  const [client, setClient] = useState({
+    date: '',
+    time: '',
+    name: '',
+    phone: '',
+    address: '',
+    floor: '',
+    apartment: '',
+    intercom: '',
+    note: '',
+  });
+  const setC = (k: keyof typeof client, v: string) => setClient({ ...client, [k]: v });
 
   const [copied, setCopied] = useState(false);
 
   const isRepair = type === 'repair';
+  const filmActive = isRepair && windowFilm;
 
   const switchType = (t: CleaningType) => {
     setType(t);
     setPanoramicPrice(t === 'repair' ? windowPrices.panoramic.repair : windowPrices.panoramic.usual);
+    if (t !== 'repair') setWindowFilm(false);
   };
 
   const calc = useMemo(() => {
     const lines: { label: string; sum: number }[] = [];
 
-    // Основная уборка
+    // Основная уборка (коэффициент загрязнённости — только сюда)
     const rate = rateFor(type, area);
-    const baseRaw = area > 0 ? Math.round(area * rate) : 0;
+    const k = clampDirt(dirt);
+    const baseRaw = area > 0 ? Math.round(area * rate * k) : 0;
     const base = area > 0 ? Math.max(baseRaw, MIN_ORDER) : 0;
     if (area > 0) {
+      const kTxt = k !== 1 ? ` × ${k.toFixed(1)} (загрязнённость)` : '';
       lines.push({
-        label: `${cleaningLabels[type]} уборка, ${area} м² × ${rate} ₽` + (base > baseRaw ? ' (минималка)' : ''),
+        label: `${cleaningLabels[type]} уборка, ${area} м² × ${rate} ₽${kTxt}` + (base > baseRaw ? ' (минималка)' : ''),
         sum: base,
       });
     }
 
-    // Окна
-    const wp = (k: keyof typeof windowPrices) =>
-      k === 'panoramic' ? panoramicPrice : isRepair ? windowPrices[k].repair : windowPrices[k].usual;
-    (Object.keys(windowPrices) as (keyof typeof windowPrices)[]).forEach((k) => {
-      const count = win[k];
-      if (count > 0) lines.push({ label: `${windowPrices[k].label} × ${count}`, sum: count * wp(k) });
+    // Окна (плёнка ×2 — только после ремонта)
+    const filmK = filmActive ? 2 : 1;
+    const wp = (key: keyof typeof windowPrices) =>
+      (key === 'panoramic' ? panoramicPrice : isRepair ? windowPrices[key].repair : windowPrices[key].usual) * filmK;
+    (Object.keys(windowPrices) as (keyof typeof windowPrices)[]).forEach((key) => {
+      const count = win[key];
+      if (count > 0)
+        lines.push({
+          label: `${windowPrices[key].label} × ${count}${filmActive ? ' (плёнка ×2)' : ''}`,
+          sum: count * wp(key),
+        });
     });
 
     // Допуслуги
@@ -180,21 +211,33 @@ const InternalCalc = () => {
       if (count > 0) lines.push({ label: `Химчистка: ${s.label} × ${count}`, sum: count * s.price });
     });
 
-    // Отдельные санузлы
     if (bathrooms > 0) lines.push({ label: `Отдельный санузел/ванная × ${bathrooms}`, sum: bathrooms * 6000 });
-
-    // Модификаторы
     if (mold) lines.push({ label: 'Обработка плесени', sum: 1500 });
     if (polyana) lines.push({ label: 'Выезд на Красную Поляну', sum: 2000 });
 
     const total = lines.reduce((a, l) => a + l.sum, 0);
     return { lines, total };
-  }, [type, area, win, panoramicPrice, extras, wardrobeExtra, dry, mold, polyana, bathrooms, isRepair]);
+  }, [type, area, dirt, win, panoramicPrice, filmActive, isRepair, extras, wardrobeExtra, dry, mold, polyana, bathrooms]);
 
   const estimateText = useMemo(() => {
     const rows = calc.lines.map((l) => `• ${l.label} — ${fmt(l.sum)}`).join('\n');
-    return `Расчёт стоимости уборки «Империя Блеска»\n\n${rows}\n\nИТОГО: ${fmt(calc.total)}\n\nЦену фиксируем до начала работ. Оплата после приёмки по чек-листу.`;
-  }, [calc]);
+
+    const info: string[] = [];
+    if (client.name) info.push(`Имя: ${client.name}`);
+    if (client.phone) info.push(`Телефон: ${client.phone}`);
+    if (client.date || client.time) info.push(`Дата и время: ${[client.date, client.time].filter(Boolean).join(' ')}`);
+    if (client.address) info.push(`Адрес: ${client.address}`);
+    const flat = [
+      client.floor && `этаж ${client.floor}`,
+      client.apartment && `кв. ${client.apartment}`,
+      client.intercom && `домофон ${client.intercom}`,
+    ].filter(Boolean).join(', ');
+    if (flat) info.push(flat[0].toUpperCase() + flat.slice(1));
+    if (client.note) info.push(`Дополнительно: ${client.note}`);
+    const infoBlock = info.length ? `\n\nДанные клиента:\n${info.join('\n')}` : '';
+
+    return `Расчёт стоимости уборки «Империя Блеска»\n\n${rows}\n\nИТОГО: ${fmt(calc.total)}${infoBlock}\n\nЦену фиксируем до начала работ. Оплата после приёмки по чек-листу.`;
+  }, [calc, client]);
 
   const copyEstimate = async () => {
     try {
@@ -205,15 +248,18 @@ const InternalCalc = () => {
   };
 
   const reset = () => {
+    switchType('wet');
     setArea(50);
-    switchType('general');
+    setDirt(1.0);
     setWin({ panoramic: 0, standard: 0, mini: 0, balconyDoor: 0 });
+    setWindowFilm(false);
     setExtras({});
     setWardrobeExtra(0);
     setDry({});
     setMold(false);
     setPolyana(false);
     setBathrooms(0);
+    setClient({ date: '', time: '', name: '', phone: '', address: '', floor: '', apartment: '', intercom: '', note: '' });
   };
 
   return (
@@ -238,13 +284,13 @@ const InternalCalc = () => {
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-6 grid lg:grid-cols-[1fr_380px] gap-6 items-start">
+        <main className="container mx-auto px-4 py-6 grid lg:grid-cols-[1fr_400px] gap-6 items-start">
           {/* ЛЕВАЯ КОЛОНКА — ПАРАМЕТРЫ */}
           <div className="space-y-5">
-            {/* Тип уборки + площадь */}
+            {/* Тип уборки + площадь + загрязнённость */}
             <Section title="Уборка">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-                {(Object.keys(cleaningLabels) as CleaningType[]).map((t) => (
+                {cleaningOrder.map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -259,22 +305,54 @@ const InternalCalc = () => {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-medium shrink-0">Площадь, м²</label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={1000}
-                  value={area || ''}
-                  onChange={(e) => setArea(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
-                  className="w-28 h-10"
-                />
+
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-medium shrink-0">Площадь, м²</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={1000}
+                    value={area || ''}
+                    onChange={(e) => setArea(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
+                    className="w-24 h-10"
+                  />
+                </div>
                 <span className="text-sm text-muted-foreground">
                   Ставка: <b className="text-primary">{rateFor(type, area)} ₽/м²</b>
                 </span>
               </div>
+
+              <div className="mt-4 pt-4 border-t border-[#DDEBE8]">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">
+                    Коэффициент загрязнённости
+                    <span className="text-xs text-muted-foreground font-normal ml-2">
+                      только на уборку по м², от 1.0 до 3.0
+                    </span>
+                  </label>
+                  <span className={`font-heading font-bold ${dirt > 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+                    ×{clampDirt(dirt).toFixed(1)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  value={clampDirt(dirt)}
+                  onChange={(e) => setDirt(clampDirt(Number(e.target.value)))}
+                  className="w-full accent-primary"
+                  aria-label="Коэффициент загрязнённости"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>1.0 — обычное состояние</span>
+                  <span>3.0 — экстремальное</span>
+                </div>
+              </div>
+
               {area > 100 && (
-                <div className="mt-3 flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-800">
+                <div className="mt-4 flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-800">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>
                     Объект больше 100 м² / корпоративный (офис, клиника, ресторан): предложи выезд
@@ -286,33 +364,50 @@ const InternalCalc = () => {
 
             {/* Окна */}
             <Section title={`Окна ${isRepair ? '(тариф «после ремонта»)' : '(генеральная/влажная)'}`}>
+              {isRepair && (
+                <label className="flex items-center gap-3 cursor-pointer mb-4 p-3 rounded-xl bg-[#F7FAF9] border border-[#DDEBE8]">
+                  <input
+                    type="checkbox"
+                    checked={windowFilm}
+                    onChange={(e) => setWindowFilm(e.target.checked)}
+                    className="accent-[#00796F] w-4 h-4"
+                  />
+                  <span className="text-sm">
+                    <b>Плёнка на окнах</b> — все окна <b className="text-primary">×2</b>
+                  </span>
+                </label>
+              )}
               <div className="space-y-3">
-                {(Object.keys(windowPrices) as (keyof typeof windowPrices)[]).map((k) => (
-                  <div key={k} className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{windowPrices[k].label}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {k === 'panoramic' ? (
-                          <span className="inline-flex items-center gap-1.5">
-                            <Input
-                              type="number"
-                              value={panoramicPrice}
-                              onChange={(e) => setPanoramicPrice(Math.max(0, Number(e.target.value) || 0))}
-                              className="w-20 h-6 text-xs px-1.5 inline-block"
-                            />
-                            ₽/створка · {windowPrices[k].note}
-                          </span>
-                        ) : (
-                          <>
-                            {fmt(isRepair ? windowPrices[k].repair : windowPrices[k].usual)}
-                            {('note' in windowPrices[k] && windowPrices[k].note) ? ` · ${windowPrices[k].note}` : ''}
-                          </>
-                        )}
-                      </p>
+                {(Object.keys(windowPrices) as (keyof typeof windowPrices)[]).map((k) => {
+                  const baseP = k === 'panoramic' ? panoramicPrice : isRepair ? windowPrices[k].repair : windowPrices[k].usual;
+                  const effP = baseP * (filmActive ? 2 : 1);
+                  return (
+                    <div key={k} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{windowPrices[k].label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {k === 'panoramic' ? (
+                            <span className="inline-flex items-center gap-1.5 flex-wrap">
+                              <Input
+                                type="number"
+                                value={panoramicPrice}
+                                onChange={(e) => setPanoramicPrice(Math.max(0, Number(e.target.value) || 0))}
+                                className="w-20 h-6 text-xs px-1.5 inline-block"
+                              />
+                              ₽{filmActive ? ` → ${fmt(effP)} с плёнкой` : '/створка'} · {windowPrices[k].note}
+                            </span>
+                          ) : (
+                            <>
+                              {fmt(baseP)}
+                              {filmActive ? ` → ${fmt(effP)} с плёнкой` : ''}
+                            </>
+                          )}
+                        </p>
+                      </div>
+                      <Counter value={win[k]} onChange={(v) => setWin({ ...win, [k]: v })} />
                     </div>
-                    <Counter value={win[k]} onChange={(v) => setWin({ ...win, [k]: v })} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <p className="text-xs text-muted-foreground mt-3">
                 Глухие окна с лестницей — цену увеличиваем; если их много — уменьшаем.
@@ -422,38 +517,90 @@ const InternalCalc = () => {
             </Section>
           </div>
 
-          {/* ПРАВАЯ КОЛОНКА — СМЕТА */}
-          <div className="lg:sticky lg:top-6 rounded-2xl bg-white border border-[#DDEBE8] p-5 shadow-[0_8px_40px_-12px_rgba(0,63,59,0.15)]">
-            <h2 className="font-heading font-bold mb-3">Смета</h2>
-            {calc.lines.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Заполни параметры слева.</p>
-            ) : (
-              <div className="space-y-2 max-h-[50vh] overflow-auto pr-1">
-                {calc.lines.map((l, i) => (
-                  <div key={i} className="flex justify-between gap-3 text-sm">
-                    <span className="text-muted-foreground">{l.label}</span>
-                    <span className="font-medium whitespace-nowrap">{fmt(l.sum)}</span>
-                  </div>
-                ))}
+          {/* ПРАВАЯ КОЛОНКА — СМЕТА + КЛИЕНТ */}
+          <div className="lg:sticky lg:top-6 space-y-5">
+            <div className="rounded-2xl bg-white border border-[#DDEBE8] p-5 shadow-[0_8px_40px_-12px_rgba(0,63,59,0.15)]">
+              <h2 className="font-heading font-bold mb-3">Смета</h2>
+              {calc.lines.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Заполни параметры слева.</p>
+              ) : (
+                <div className="space-y-2 max-h-[35vh] overflow-auto pr-1">
+                  {calc.lines.map((l, i) => (
+                    <div key={i} className="flex justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">{l.label}</span>
+                      <span className="font-medium whitespace-nowrap">{fmt(l.sum)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="border-t border-[#DDEBE8] mt-4 pt-4 flex items-baseline justify-between">
+                <span className="font-heading font-bold text-lg">Итого</span>
+                <span className="font-heading font-bold text-3xl text-primary">{fmt(calc.total)}</span>
               </div>
-            )}
-            <div className="border-t border-[#DDEBE8] mt-4 pt-4 flex items-baseline justify-between">
-              <span className="font-heading font-bold text-lg">Итого</span>
-              <span className="font-heading font-bold text-3xl text-primary">{fmt(calc.total)}</span>
             </div>
-            <div className="mt-4 grid gap-2">
-              <Button onClick={copyEstimate} className="w-full rounded-xl hero-gradient text-white" disabled={calc.lines.length === 0}>
-                {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-                {copied ? 'Скопировано!' : 'Скопировать смету для клиента'}
-              </Button>
-              <Button variant="outline" onClick={reset} className="w-full rounded-xl border-[#DDEBE8]">
-                Сбросить
-              </Button>
+
+            <div className="rounded-2xl bg-white border border-[#DDEBE8] p-5">
+              <h2 className="font-heading font-bold mb-3">Данные клиента</h2>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-xs text-muted-foreground">День уборки</label>
+                  <Input type="date" value={client.date} onChange={(e) => setC('date', e.target.value)} className="h-10 mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Время</label>
+                  <Input type="time" value={client.time} onChange={(e) => setC('time', e.target.value)} className="h-10 mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Имя</label>
+                  <Input value={client.name} onChange={(e) => setC('name', e.target.value)} className="h-10 mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Телефон</label>
+                  <Input type="tel" value={client.phone} onChange={(e) => setC('phone', e.target.value)} placeholder="+7" className="h-10 mt-1" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs text-muted-foreground">Адрес</label>
+                  <Input value={client.address} onChange={(e) => setC('address', e.target.value)} placeholder="Улица, дом" className="h-10 mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Этаж</label>
+                  <Input value={client.floor} onChange={(e) => setC('floor', e.target.value)} className="h-10 mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Квартира</label>
+                  <Input value={client.apartment} onChange={(e) => setC('apartment', e.target.value)} className="h-10 mt-1" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs text-muted-foreground">Код домофона</label>
+                  <Input value={client.intercom} onChange={(e) => setC('intercom', e.target.value)} className="h-10 mt-1" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs text-muted-foreground">Дополнительно</label>
+                  <textarea
+                    value={client.note}
+                    onChange={(e) => setC('note', e.target.value)}
+                    rows={2}
+                    placeholder="Парковка, питомцы, пожелания..."
+                    className="w-full mt-1 rounded-lg border border-[#DDEBE8] bg-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-2">
+                <Button onClick={copyEstimate} className="w-full rounded-xl hero-gradient text-white" disabled={calc.lines.length === 0}>
+                  {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                  {copied ? 'Скопировано!' : 'Скопировать смету + данные'}
+                </Button>
+                <Button variant="outline" onClick={reset} className="w-full rounded-xl border-[#DDEBE8]">
+                  Сбросить всё
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3 leading-snug">
+                Минимальный заказ — 6 000 ₽ (учитывается автоматически). Химчистка и окна
+                считаются поверх минималки. Коэффициент загрязнённости применяется только
+                к уборке по м².
+              </p>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-3 leading-snug">
-              Минимальный заказ — 6 000 ₽ (учитывается автоматически). Химчистка и окна
-              считаются поверх минималки.
-            </p>
           </div>
         </main>
       </div>

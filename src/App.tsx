@@ -12,33 +12,37 @@ import HouseCleaning from "./pages/HouseCleaning";
 import AfterRepairCleaning from "./pages/AfterRepairCleaning";
 import FurnitureCleaning from "./pages/FurnitureCleaning";
 import OfficeCleaning from "./pages/OfficeCleaning";
+import InternalCalc from "./pages/InternalCalc";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <HelmetProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
+<HelmetProvider>
+<QueryClientProvider client={queryClient}>
+<TooltipProvider>
+<Toaster />
+<Sonner />
 
-        <BrowserRouter basename="/">
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/uborka-kvartir-sochi" element={<ApartmentCleaning />} />
-            <Route path="/uborka-domov-sochi" element={<HouseCleaning />} />
-            <Route path="/uborka-posle-remonta-sochi" element={<AfterRepairCleaning />} />
-            <Route path="/himchistka-mebeli-sochi" element={<FurnitureCleaning />} />
-            <Route path="/uborka-oficov" element={<OfficeCleaning />} />
+<BrowserRouter basename="/">
+<Routes>
+<Route path="/" element={<Index />} />
+<Route path="/uborka-kvartir-sochi" element={<ApartmentCleaning />} />
+<Route path="/uborka-domov-sochi" element={<HouseCleaning />} />
+<Route path="/uborka-posle-remonta-sochi" element={<AfterRepairCleaning />} />
+<Route path="/himchistka-mebeli-sochi" element={<FurnitureCleaning />} />
+<Route path="/uborka-oficov" element={<OfficeCleaning />} />
 
-            {/* catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+{/* internal, noindex */}
+<Route path="/calc" element={<InternalCalc />} />
 
-      </TooltipProvider>
-    </QueryClientProvider>
-  </HelmetProvider>
+{/* catch-all */}
+<Route path="*" element={<NotFound />} />
+</Routes>
+</BrowserRouter>
+
+</TooltipProvider>
+</QueryClientProvider>
+</HelmetProvider>
 );
 
 export default App;

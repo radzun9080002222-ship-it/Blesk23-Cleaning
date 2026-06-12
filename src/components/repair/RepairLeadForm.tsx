@@ -4,6 +4,27 @@ import { Input } from '@/components/ui/input';
 import { CheckCircle2 } from 'lucide-react';
 import { reachGoal } from '@/lib/metrika';
 
+const GOOGLE_FORM_URL =
+  'https://docs.google.com/forms/d/e/1FAIpQLSfb28U4RIVI2K9h6cyjSbwxRqMVMUyUeuKuQADfPWonb71ypQ/formResponse';
+
+async function sendToGoogleForm(payload: { name: string; phone: string }) {
+  const body = new URLSearchParams();
+  body.append('entry.727782635', payload.name || '');
+  body.append('entry.1862926664', payload.phone || '');
+  body.append('entry.557277616', '');
+  body.append(
+    'entry.1008164226',
+    'Заявка с лендинга «Уборка после ремонта» (/uborka-posle-remonta-sochi)'
+  );
+
+  await fetch(GOOGLE_FORM_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body,
+  });
+}
+
 const formatPhone = (raw: string) => {
   const digits = raw.replace(/\D/g, '').replace(/^8/, '7').slice(0, 11);
   const d = digits.startsWith('7') ? digits : '7' + digits;
@@ -25,21 +46,28 @@ const RepairLeadForm = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [sent, setSent] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState(false);
 
   const phoneDigits = phone.replace(/\D/g, '');
   const valid = name.trim().length >= 2 && phoneDigits.length === 11;
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid) return;
-    reachGoal('form_submit');
-    // Lightweight lead delivery via mailto fallback — replace with backend later
+    if (!valid || isSending) return;
+
     try {
-      const subj = encodeURIComponent('Заявка с лендинга «Уборка после ремонта»');
-      const body = encodeURIComponent(`Имя: ${name}\nТелефон: ${phone}\nИсточник: /uborka-posle-remonta-sochi`);
-      window.open(`mailto:imperiableska2025@gmail.com?subject=${subj}&body=${body}`, '_blank');
-    } catch {}
-    setSent(true);
+      setIsSending(true);
+      setError(false);
+      await sendToGoogleForm({ name: name.trim(), phone: phone.trim() });
+      reachGoal('form_submit');
+      setSent(true);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   if (sent) {
@@ -89,11 +117,17 @@ const RepairLeadForm = () => {
       <Button
         type="submit"
         size="lg"
-        disabled={!valid}
+        disabled={!valid || isSending}
         className="w-full h-12 rounded-xl hero-gradient text-white font-semibold"
       >
-        Получить точный расчёт
+        {isSending ? 'Отправляем...' : 'Получить точный расчёт'}
       </Button>
+
+      {error && (
+        <p className="text-xs text-destructive text-center">
+          Не удалось отправить заявку. Попробуйте ещё раз или напишите в мессенджер.
+        </p>
+      )}
 
       <p className="text-[11px] text-muted-foreground text-center leading-snug">
         Нажимая кнопку, вы соглашаетесь с обработкой персональных данных.

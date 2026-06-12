@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Home, Building2, Briefcase, MessageCircle } from 'lucide-react';
+import { Home, Building2, Briefcase, MessageCircle, Send } from 'lucide-react';
 import { reachGoal } from '@/lib/metrika';
-
-type ObjectType = 'apartment' | 'house' | 'office';
+import maxIcon from '@/assets/max-icon.jpg';
 
 const MIN_PRICE = 6000;
 
@@ -17,30 +16,21 @@ const calcPrice = (area: number) => {
 
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₽';
 
-const objectLabels: Record<ObjectType, string> = {
-  apartment: 'квартира',
-  house: 'дом',
-  office: 'офис',
-};
-
 const RepairCalculator = () => {
   const [area, setArea] = useState<number>(50);
-  const [type, setType] = useState<ObjectType>('apartment');
+  const [showMessengers, setShowMessengers] = useState(false);
 
   const price = useMemo(() => calcPrice(area), [area]);
   const ratePerM2 = area >= 100 ? 280 : 300;
   const isMinimum = price === MIN_PRICE && area * ratePerM2 < MIN_PRICE;
 
   const waText = encodeURIComponent(
-    `Здравствуйте! Считал(а) на сайте уборку после ремонта: ${area} м², ${objectLabels[type]}, примерно ${fmt(price)}. Подскажите ближайшую дату.`
+    `Здравствуйте! Считал(а) на сайте уборку после ремонта: ${area} м², примерно ${fmt(price)}. Подскажите ближайшую дату.`
   );
   const waHref = `https://wa.me/79002885255?text=${waText}`;
-
-  const types: { id: ObjectType; label: string; Icon: typeof Home }[] = [
-    { id: 'apartment', label: 'Квартира', Icon: Home },
-    { id: 'house', label: 'Дом', Icon: Building2 },
-    { id: 'office', label: 'Офис', Icon: Briefcase },
-  ];
+  const tgHref = 'https://t.me/+79002885255';
+  const maxHref =
+    'https://max.ru/u/f9LHodD0cOJtMUjlrXWI6y94fo8f8qPlmQdiA50RMF8i1MsNISiZPv1iKWk';
 
   return (
     <div className="rounded-3xl bg-white border border-[#DDEBE8] p-6 md:p-8 shadow-[0_8px_40px_-12px_rgba(0,63,59,0.15)]">
@@ -48,27 +38,23 @@ const RepairCalculator = () => {
         {/* Inputs */}
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium mb-3 text-[#0D4D49]">Тип объекта</label>
-            <div className="grid grid-cols-3 gap-2">
-              {types.map(({ id, label, Icon }) => {
-                const active = type === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setType(id)}
-                    className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all ${
-                      active
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-[#DDEBE8] text-[#0D4D49] hover:border-primary/40'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="text-xs font-medium">{label}</span>
-                  </button>
-                );
-              })}
+            <label className="block text-sm font-medium mb-3 text-[#0D4D49]">
+              Считаем для любых объектов
+            </label>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[#0D4D49]">
+              <span className="inline-flex items-center gap-1.5">
+                <Home className="w-4 h-4 text-primary" /> Квартиры
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-primary" /> Дома
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Briefcase className="w-4 h-4 text-primary" /> Офисы
+              </span>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Цена зависит только от площади — тип объекта не влияет.
+            </p>
           </div>
 
           <div>
@@ -105,7 +91,7 @@ const RepairCalculator = () => {
 
         {/* Result */}
         <div className="rounded-2xl bg-[#F7FAF9] border border-[#DDEBE8] p-6 flex flex-col">
-          <span className="text-sm text-muted-foreground">Примерная стоимость</span>
+          <span className="text-sm text-muted-foreground">Точная стоимость</span>
           <span className="font-heading text-4xl md:text-5xl font-bold text-primary mt-1">
             {fmt(price)}
           </span>
@@ -115,25 +101,69 @@ const RepairCalculator = () => {
               : `${ratePerM2} ₽/м² × ${area} м²`}
           </span>
           <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
-            Окна после ремонта считаются отдельно — от 750 ₽ за створку. Точную цену
-            зафиксируем в WhatsApp за 2 минуты.
+            Окна после ремонта считаются отдельно — от 750 ₽ за створку. Зафиксируем
+            цену в мессенджере за 2 минуты.
           </p>
 
-          <Button
-            asChild
-            size="lg"
-            className="mt-5 rounded-xl bg-[#25D366] hover:bg-[#1ebe5b] text-white shadow-md"
-          >
-            <a
-              href={waHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => reachGoal('messenger_click')}
+          {!showMessengers ? (
+            <Button
+              type="button"
+              size="lg"
+              onClick={() => setShowMessengers(true)}
+              className="mt-5 rounded-xl hero-gradient text-white font-semibold shadow-md"
             >
-              <MessageCircle className="w-5 h-5 mr-2" />
-              Зафиксировать цену в WhatsApp
-            </a>
-          </Button>
+              Зафиксировать цену
+            </Button>
+          ) : (
+            <div className="mt-5 space-y-2">
+              <Button
+                asChild
+                size="lg"
+                className="w-full rounded-xl bg-[#25D366] hover:bg-[#1ebe5b] text-white"
+              >
+                <a
+                  href={waHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => reachGoal('messenger_click')}
+                >
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  WhatsApp
+                </a>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                className="w-full rounded-xl bg-[#229ED9] hover:bg-[#1d8dc2] text-white"
+              >
+                <a
+                  href={tgHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => reachGoal('messenger_click')}
+                >
+                  <Send className="w-5 h-5 mr-2" />
+                  Telegram
+                </a>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="w-full rounded-xl border-[#DDEBE8]"
+              >
+                <a
+                  href={maxHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => reachGoal('messenger_click')}
+                >
+                  <img src={maxIcon} alt="Max" className="w-5 h-5 rounded mr-2" />
+                  Max
+                </a>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

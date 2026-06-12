@@ -15,8 +15,11 @@ import RepairCalculator from '@/components/repair/RepairCalculator';
 import RepairLeadForm from '@/components/repair/RepairLeadForm';
 import StickyMobileCTA from '@/components/repair/StickyMobileCTA';
 import { reachGoal } from '@/lib/metrika';
+import maxIcon from '@/assets/max-icon.jpg';
 
 const hero = '/images/repair/hero_gostinaya.jpg';
+const maxUrl =
+  'https://max.ru/u/f9LHodD0cOJtMUjlrXWI6y94fo8f8qPlmQdiA50RMF8i1MsNISiZPv1iKWk';
 
 const phone = '+7 900 288-52-55';
 const waUrl = 'https://wa.me/79002885255';
@@ -24,7 +27,6 @@ const tgUrl = 'https://t.me/+79002885255';
 const reviewsUrl = 'https://yandex.ru/maps/org/21130859655/reviews/';
 
 const beforeAfterItems = [
-  { before: '/images/repair/01_koridor_do.jpg', after: '/images/repair/01_koridor_posle.jpg', caption: 'Коридор, дом 180 м²' },
   { before: '/images/repair/02_gostinaya_do.jpg', after: '/images/repair/02_gostinaya_posle.jpg', caption: 'Гостиная, ЖК в Сочи' },
   { before: '/images/repair/03_kran_do.jpg', after: '/images/repair/03_kran_posle.jpg', caption: 'Сантехника: штукатурка → блеск' },
   { before: '/images/repair/04_podokonnik_do.jpg', after: '/images/repair/04_podokonnik_posle.jpg', caption: 'Подоконник: плёнка и пыль' },
@@ -169,7 +171,7 @@ const AfterRepairCleaning = () => {
               </h1>
               <p className="mt-5 text-white/85 text-base md:text-lg leading-relaxed max-w-xl">
                 Уберём строительную пыль, плёнку, следы краски и затирки. Точная цена
-                и дата — за 2 минуты в WhatsApp.
+                и дата — за 2 минуты в Max.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-2">
@@ -208,6 +210,36 @@ const AfterRepairCleaning = () => {
                   >
                     <MessageCircle className="w-5 h-5 mr-2" />
                     WhatsApp
+                  </a>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  className="rounded-full px-7 bg-[#229ED9] hover:bg-[#1d8dc2] text-white"
+                >
+                  <a
+                    href={tgUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => reachGoal('messenger_click')}
+                  >
+                    <Send className="w-5 h-5 mr-2" />
+                    Telegram
+                  </a>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  className="rounded-full px-7 bg-white text-[#003F3B] hover:bg-white/90"
+                >
+                  <a
+                    href={maxUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => reachGoal('messenger_click')}
+                  >
+                    <img src={maxIcon} alt="Max" className="w-5 h-5 rounded mr-2" />
+                    Max
                   </a>
                 </Button>
               </div>
@@ -467,6 +499,21 @@ const AfterRepairCleaning = () => {
                   >
                     <Send className="w-5 h-5 mr-2" />
                     Telegram
+                  </a>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  className="rounded-full px-7 bg-white text-[#003F3B] hover:bg-white/90"
+                >
+                  <a
+                    href={maxUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => reachGoal('messenger_click')}
+                  >
+                    <img src={maxIcon} alt="Max" className="w-5 h-5 rounded mr-2" />
+                    Max
                   </a>
                 </Button>
                 <Button

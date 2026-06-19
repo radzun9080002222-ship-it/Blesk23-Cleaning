@@ -223,7 +223,7 @@ const clampDirt = (v: number) => Math.min(3, Math.max(1, v));
 
 const InternalCalc = () => {
   const [type, setType] = useState<CleaningType>('wet');
-  const [area, setArea] = useState<number>(50);
+  const [area, setArea] = useState<number>(0);
   const [dirt, setDirt] = useState<number>(1.0);
 
   const [win, setWin] = useState({ panoramic: 0, standard: 0, mini: 0, balconyDoor: 0 });
@@ -236,6 +236,7 @@ const InternalCalc = () => {
 
   const [mold, setMold] = useState(false);
   const [polyana, setPolyana] = useState(false);
+  const [privateHouse, setPrivateHouse] = useState(false);
   const [bathrooms, setBathrooms] = useState(0);
 
   // Данные клиента
@@ -480,7 +481,7 @@ const InternalCalc = () => {
 
   const reset = () => {
     switchType('wet');
-    setArea(50);
+    setArea(0);
     setDirt(1.0);
     setWin({ panoramic: 0, standard: 0, mini: 0, balconyDoor: 0 });
     setWindowFilm(false);
@@ -489,6 +490,7 @@ const InternalCalc = () => {
     setDry({});
     setMold(false);
     setPolyana(false);
+    setPrivateHouse(false);
     setBathrooms(0);
     setManualPrice(null);
     setCleanersOverride(null);
@@ -1094,18 +1096,37 @@ const InternalCalc = () => {
                   <label className="text-xs text-muted-foreground">Адрес</label>
                   <Input value={client.address} onChange={(e) => setC('address', e.target.value)} placeholder="Улица, дом" className="h-10 mt-1" />
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Этаж</label>
-                  <Input value={client.floor} onChange={(e) => setC('floor', e.target.value)} className="h-10 mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Квартира</label>
-                  <Input value={client.apartment} onChange={(e) => setC('apartment', e.target.value)} className="h-10 mt-1" />
-                </div>
-                <div className="col-span-2">
-                  <label className="text-xs text-muted-foreground">Код домофона</label>
-                  <Input value={client.intercom} onChange={(e) => setC('intercom', e.target.value)} className="h-10 mt-1" />
-                </div>
+                <label className="col-span-2 flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={privateHouse}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setPrivateHouse(checked);
+                      if (checked) {
+                        setClient((prev) => ({ ...prev, floor: '', apartment: '', intercom: '' }));
+                      }
+                    }}
+                    className="mt-1 accent-[#00796F] w-4 h-4"
+                  />
+                  <span className="text-sm"><b>Частный дом</b></span>
+                </label>
+                {!privateHouse && (
+                  <>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Этаж</label>
+                      <Input value={client.floor} onChange={(e) => setC('floor', e.target.value)} className="h-10 mt-1" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Квартира</label>
+                      <Input value={client.apartment} onChange={(e) => setC('apartment', e.target.value)} className="h-10 mt-1" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted-foreground">Код домофона</label>
+                      <Input value={client.intercom} onChange={(e) => setC('intercom', e.target.value)} className="h-10 mt-1" />
+                    </div>
+                  </>
+                )}
                 <div className="col-span-2">
                   <label className="text-xs text-muted-foreground">Дополнительно</label>
                   <textarea

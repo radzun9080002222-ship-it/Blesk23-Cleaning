@@ -468,7 +468,7 @@ const InternalCalc = () => {
         phone: client.phone,
         leadName: `Калькулятор: ${cleaningLabels[type]}, ${area} м²${dt ? ` на ${dt}` : ''}`,
         price: finalTotal,
-        note: `${estimateText}\n\n— — —\nВнутреннее (клиенту не отправлять):\nМаржа сделки: ${fmt(Math.round(econ.margin))} (${econ.marginPctVal.toFixed(0)}%)`,
+        note: `${estimateText}\n\n— — —\nВнутреннее (клиенту не отправлять):\nМаржа сделки: ${fmt(Math.round(econ.margin))} (${econ.marginPctVal.toFixed(0)}%)\nМаржа без клинеров: ${fmt(Math.round(econ.margin + econ.cleanersCost))}`,
       });
       setAmoStatus('ok');
       setTimeout(() => setAmoStatus('idle'), 4000);

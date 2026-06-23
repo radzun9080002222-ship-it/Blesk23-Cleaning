@@ -814,15 +814,18 @@ const InternalCalc = () => {
             {/* Химчистка */}
             <Section title="Химчистка мебели (цены «от»)">
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-                {dryCleaning.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm truncate">{s.label}</p>
-                      <p className="text-xs text-muted-foreground">от {fmt(s.price)}</p>
+                {dryCleaning.map((s) => {
+                  const price = pricing.dry[s.id] ?? s.price;
+                  return (
+                    <div key={s.id} className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm truncate">{s.label}</p>
+                        <p className="text-xs text-muted-foreground">от {fmt(price)}</p>
+                      </div>
+                      <Counter value={dry[s.id] || 0} onChange={(v) => setDry({ ...dry, [s.id]: v })} />
                     </div>
-                    <Counter value={dry[s.id] || 0} onChange={(v) => setDry({ ...dry, [s.id]: v })} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Section>
 

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send, TrendingUp, Settings2 } from 'lucide-react';
+import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send, TrendingUp, Settings2, Settings, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 /* ====================== AMO CRM ====================== */
 

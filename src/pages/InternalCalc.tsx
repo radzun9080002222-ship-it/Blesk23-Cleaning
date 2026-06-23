@@ -620,7 +620,7 @@ const InternalCalc = () => {
         <header className="bg-[#003F3B] text-white">
           <div className="container mx-auto px-4 py-4 flex items-center gap-3">
             <Calculator className="w-6 h-6 text-[#41BFAE]" />
-            <div>
+            <div className="flex-1 min-w-0">
               <h1 className="font-heading font-bold text-lg leading-tight">
                 Калькулятор просчёта — для менеджеров
               </h1>
@@ -628,6 +628,15 @@ const InternalCalc = () => {
                 Внутренняя страница, в поиске не отображается. Прайс от 12.06.2026.
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowPricingPanel(true)}
+              title="Настройки цен"
+              aria-label="Настройки цен"
+              className="shrink-0 w-10 h-10 rounded-lg border border-white/10 hover:bg-white/10 flex items-center justify-center text-[#41BFAE] transition-colors"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
           </div>
         </header>
 

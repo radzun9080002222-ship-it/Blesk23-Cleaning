@@ -738,7 +738,7 @@ const InternalCalc = () => {
               )}
               <div className="space-y-3">
                 {(Object.keys(windowPrices) as (keyof typeof windowPrices)[]).map((k) => {
-                  const baseP = k === 'panoramic' ? panoramicPrice : isRepair ? windowPrices[k].repair : windowPrices[k].usual;
+                  const baseP = k === 'panoramic' ? panoramicPrice : isRepair ? pricing.windows[k].repair : pricing.windows[k].usual;
                   const effP = baseP * (filmActive ? 2 : 1);
                   return (
                     <div key={k} className="flex items-center justify-between gap-3">

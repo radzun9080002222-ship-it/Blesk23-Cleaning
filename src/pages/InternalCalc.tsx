@@ -196,26 +196,8 @@ const cleaningLabels: Record<CleaningType, string> = {
   all_inclusive: 'Всё включено',
 };
 
-const rateFor = (type: CleaningType, area: number): number => {
-  if (type === 'general') {
-    if (area <= 60) return 280;
-    if (area <= 80) return 270;
-    if (area <= 99) return 260;
-    return 250;
-  }
-  if (type === 'wet') {
-    if (area <= 60) return 160;
-    if (area <= 70) return 150;
-    if (area <= 80) return 140;
-    if (area <= 90) return 130;
-    if (area <= 99) return 120;
-    return 110;
-  }
-  if (type === 'repair') {
-    return area <= 99 ? 300 : 280;
-  }
-  return 450; // всё включено
-};
+// Тип-обёртка вынесена в rateForPricing(pricing, ...) выше.
+// Внутри компонента ниже создаём `const rateFor = (t,a) => rateForPricing(pricing,t,a)`.
 
 // Окна: [обычная уборка, после ремонта]
 const windowPrices = {

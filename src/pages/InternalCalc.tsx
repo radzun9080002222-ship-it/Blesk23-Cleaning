@@ -776,22 +776,25 @@ const InternalCalc = () => {
             {/* Допуслуги */}
             <Section title="Дополнительные услуги">
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-                {extraServices.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm truncate">{s.label}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(s.price)} / {s.unit}</p>
+                {extraServices.map((s) => {
+                  const price = pricing.extras[s.id] ?? s.price;
+                  return (
+                    <div key={s.id} className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm truncate">{s.label}</p>
+                        <p className="text-xs text-muted-foreground">{fmt(price)} / {s.unit}</p>
+                      </div>
+                      <Counter
+                        value={extras[s.id] || 0}
+                        onChange={(v) => setExtras({ ...extras, [s.id]: v })}
+                      />
                     </div>
-                    <Counter
-                      value={extras[s.id] || 0}
-                      onChange={(v) => setExtras({ ...extras, [s.id]: v })}
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="mt-4 pt-4 border-t border-[#DDEBE8] flex flex-wrap items-center gap-2">
                 <span className="text-sm">Шкафы/комоды по квартире внутри:</span>
-                {([0, 2000, 2500] as const).map((v) => (
+                {[0, ...pricing.wardrobe].map((v) => (
                   <button
                     key={v}
                     type="button"

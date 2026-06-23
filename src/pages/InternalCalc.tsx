@@ -840,7 +840,7 @@ const InternalCalc = () => {
                     className="mt-1 accent-[#00796F] w-4 h-4"
                   />
                   <span className="text-sm">
-                    <b>Плесень (+1 500 ₽)</b> — запроси фото и согласуй с руководством. Скрипт:
+                    <b>Плесень (+{fmt(pricing.special.mold)})</b> — запроси фото и согласуй с руководством. Скрипт:
                     «Сделаем всё, чтобы отмыть плесень. В 90% случаев получается, но иногда
                     застарелые пятна въедаются и не уходят».
                   </span>
@@ -852,11 +852,11 @@ const InternalCalc = () => {
                     onChange={(e) => setPolyana(e.target.checked)}
                     className="mt-1 accent-[#00796F] w-4 h-4"
                   />
-                  <span className="text-sm"><b>Выезд на Красную Поляну</b> (+2 000 ₽)</span>
+                  <span className="text-sm"><b>Выезд на Красную Поляну</b> (+{fmt(pricing.special.polyana)})</span>
                 </label>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm">
-                    <b>Отдельный санузел/ванная</b> без уборки квартиры — 6 000 ₽/шт
+                    <b>Отдельный санузел/ванная</b> без уборки квартиры — {fmt(pricing.special.bathroom)}/шт
                   </span>
                   <Counter value={bathrooms} onChange={setBathrooms} />
                 </div>

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send, TrendingUp, Settings2 } from 'lucide-react';
+import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send, TrendingUp, Settings2, Settings, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 /* ====================== AMO CRM ====================== */
 
@@ -48,7 +49,89 @@ async function sendToAmo(payload: {
 
 type CleaningType = 'wet' | 'general' | 'repair' | 'all_inclusive';
 
-const MIN_ORDER = 6000;
+/* ====================== ОБЩИЕ ЦЕНЫ (PRICING) ====================== */
+// Дефолтные цены калькулятора. Хранятся в Supabase в таблице
+// pricing_config (id='default'), синхронизированы между всеми менеджерами.
+// Если Supabase недоступен — калькулятор работает на этих дефолтах.
+export const PRICING_DEFAULTS = {
+  minOrder: 6000,
+  rates: {
+    wet:     [ {upTo:60,price:160},{upTo:70,price:150},{upTo:80,price:140},{upTo:90,price:130},{upTo:99,price:120},{upTo:null as number|null,price:110} ],
+    general: [ {upTo:60,price:280},{upTo:80,price:270},{upTo:99,price:260},{upTo:null as number|null,price:250} ],
+    repair:  [ {upTo:99,price:300},{upTo:null as number|null,price:280} ],
+    allInclusive: 450,
+  },
+  windows: {
+    panoramic:   { usual:1200, repair:2000 },
+    standard:    { usual:500,  repair:750  },
+    mini:        { usual:400,  repair:500  },
+    balconyDoor: { usual:1200, repair:1500 },
+  },
+  extras: {
+    fridge:900, fridge2:1800, oven:900, microwave:500, hood:700, kitchen_cabinet:250,
+    curtains_wash:1500, curtains_iron:1000, ironing:800, linen:500,
+    chandelier:500, chandelier_big:1500, ac:500, seams:3000,
+  } as Record<string, number>,
+  dry: {
+    sofa2:3500, sofa3:5000, sofa_corner:7500, sofa_slide:800, pillow:400, mattress:2800,
+    armchair:1200, chair:450, headboard:1200, pouf:550, bench:1200, carseat:1500, stroller:2500,
+  } as Record<string, number>,
+  wardrobe: [2000, 2500] as number[],
+  special: { bathroom:6000, mold:1500, polyana:2000 },
+};
+
+export type PricingConfig = typeof PRICING_DEFAULTS;
+
+// Глубокое слияние data из Supabase поверх дефолтов (на случай новых полей).
+const mergePricing = (saved: any): PricingConfig => {
+  if (!saved || typeof saved !== 'object') return PRICING_DEFAULTS;
+  const out: any = JSON.parse(JSON.stringify(PRICING_DEFAULTS));
+  const deep = (dst: any, src: any) => {
+    if (!src || typeof src !== 'object') return;
+    for (const k of Object.keys(src)) {
+      const sv = src[k];
+      if (Array.isArray(sv)) {
+        // массивы (rates.*, wardrobe) — мерджим по индексу
+        if (Array.isArray(dst[k])) {
+          dst[k] = dst[k].map((item: any, i: number) => {
+            const s = sv[i];
+            if (s == null) return item;
+            if (typeof item === 'object' && item && typeof s === 'object') return { ...item, ...s };
+            return s;
+          });
+        } else {
+          dst[k] = sv;
+        }
+      } else if (sv && typeof sv === 'object') {
+        if (!dst[k] || typeof dst[k] !== 'object') dst[k] = {};
+        deep(dst[k], sv);
+      } else if (typeof sv === 'number') {
+        dst[k] = sv;
+      }
+    }
+  };
+  deep(out, saved);
+  return out as PricingConfig;
+};
+
+const rateForPricing = (pricing: PricingConfig, type: CleaningType, area: number): number => {
+  if (type === 'all_inclusive') return pricing.rates.allInclusive;
+  const brackets = pricing.rates[type as 'wet' | 'general' | 'repair'];
+  for (const b of brackets) {
+    if (b.upTo == null || area <= b.upTo) return b.price;
+  }
+  return brackets[brackets.length - 1].price;
+};
+
+const rateBracketLabel = (upTo: number | null, idx: number, arr: { upTo: number | null }[]): string => {
+  if (upTo == null) {
+    const prev = idx > 0 ? arr[idx - 1].upTo : null;
+    return prev != null ? `свыше ${prev} м²` : 'все площади';
+  }
+  return `до ${upTo} м²`;
+};
+
+
 
 /* ====================== МАРЖИНАЛЬНОСТЬ ====================== */
 // Дефолты — из фин.модели (ОПУ за год). Все значения можно править
@@ -113,26 +196,8 @@ const cleaningLabels: Record<CleaningType, string> = {
   all_inclusive: 'Всё включено',
 };
 
-const rateFor = (type: CleaningType, area: number): number => {
-  if (type === 'general') {
-    if (area <= 60) return 280;
-    if (area <= 80) return 270;
-    if (area <= 99) return 260;
-    return 250;
-  }
-  if (type === 'wet') {
-    if (area <= 60) return 160;
-    if (area <= 70) return 150;
-    if (area <= 80) return 140;
-    if (area <= 90) return 130;
-    if (area <= 99) return 120;
-    return 110;
-  }
-  if (type === 'repair') {
-    return area <= 99 ? 300 : 280;
-  }
-  return 450; // всё включено
-};
+// Тип-обёртка вынесена в rateForPricing(pricing, ...) выше.
+// Внутри компонента ниже создаём `const rateFor = (t,a) => rateForPricing(pricing,t,a)`.
 
 // Окна: [обычная уборка, после ремонта]
 const windowPrices = {
@@ -222,16 +287,61 @@ const clampDirt = (v: number) => Math.min(3, Math.max(1, v));
 /* ====================== СТРАНИЦА ====================== */
 
 const InternalCalc = () => {
+  // ===== ОБЩИЕ ЦЕНЫ (Supabase) =====
+  const [pricing, setPricing] = useState<PricingConfig>(PRICING_DEFAULTS);
+  const [showPricingPanel, setShowPricingPanel] = useState(false);
+  const [pricingSaveStatus, setPricingSaveStatus] = useState<'idle' | 'saving' | 'ok' | 'err'>('idle');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('pricing_config')
+          .select('data')
+          .eq('id', 'default')
+          .maybeSingle();
+        if (cancelled) return;
+        if (!error && data?.data) {
+          setPricing(mergePricing(data.data));
+        }
+      } catch {
+        // молча игнорируем — работаем на дефолтах
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const savePricing = async () => {
+    setPricingSaveStatus('saving');
+    try {
+      const { error } = await supabase
+        .from('pricing_config')
+        .upsert({ id: 'default', data: pricing as any, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      setPricingSaveStatus('ok');
+      setTimeout(() => setPricingSaveStatus('idle'), 2500);
+    } catch (e) {
+      console.error(e);
+      setPricingSaveStatus('err');
+      setTimeout(() => setPricingSaveStatus('idle'), 3500);
+    }
+  };
+
+  const resetPricing = () => setPricing(PRICING_DEFAULTS);
+
+  const rateFor = (t: CleaningType, a: number) => rateForPricing(pricing, t, a);
+
   const [type, setType] = useState<CleaningType>('wet');
   const [area, setArea] = useState<number>(0);
   const [dirt, setDirt] = useState<number>(1.0);
 
   const [win, setWin] = useState({ panoramic: 0, standard: 0, mini: 0, balconyDoor: 0 });
-  const [panoramicPrice, setPanoramicPrice] = useState<number>(windowPrices.panoramic.usual);
+  const [panoramicPrice, setPanoramicPrice] = useState<number>(PRICING_DEFAULTS.windows.panoramic.usual);
   const [windowFilm, setWindowFilm] = useState(false);
 
   const [extras, setExtras] = useState<Record<string, number>>({});
-  const [wardrobeExtra, setWardrobeExtra] = useState<0 | 2000 | 2500>(0);
+  const [wardrobeExtra, setWardrobeExtra] = useState<number>(0);
   const [dry, setDry] = useState<Record<string, number>>({});
 
   const [mold, setMold] = useState(false);
@@ -293,7 +403,7 @@ const InternalCalc = () => {
   const switchType = (t: CleaningType) => {
     setType(t);
     setCleanersOverride(null);
-    setPanoramicPrice(t === 'repair' ? windowPrices.panoramic.repair : windowPrices.panoramic.usual);
+    setPanoramicPrice(t === 'repair' ? pricing.windows.panoramic.repair : pricing.windows.panoramic.usual);
     if (t !== 'repair') setWindowFilm(false);
   };
 
@@ -301,10 +411,10 @@ const InternalCalc = () => {
     const lines: { label: string; sum: number }[] = [];
 
     // Основная уборка (коэффициент загрязнённости — только сюда)
-    const rate = rateFor(type, area);
+    const rate = rateForPricing(pricing, type, area);
     const k = clampDirt(dirt);
     const baseRaw = area > 0 ? Math.round(area * rate * k) : 0;
-    const base = area > 0 ? Math.max(baseRaw, MIN_ORDER) : 0;
+    const base = area > 0 ? Math.max(baseRaw, pricing.minOrder) : 0;
     if (area > 0) {
       const kTxt = k !== 1 ? ` × ${k.toFixed(1)} (загрязнённости)` : '';
       lines.push({
@@ -316,7 +426,7 @@ const InternalCalc = () => {
     // Окна (плёнка ×2 — только после ремонта)
     const filmK = filmActive ? 2 : 1;
     const wp = (key: keyof typeof windowPrices) =>
-      (key === 'panoramic' ? panoramicPrice : isRepair ? windowPrices[key].repair : windowPrices[key].usual) * filmK;
+      (key === 'panoramic' ? panoramicPrice : isRepair ? pricing.windows[key].repair : pricing.windows[key].usual) * filmK;
     (Object.keys(windowPrices) as (keyof typeof windowPrices)[]).forEach((key) => {
       const count = win[key];
       if (count > 0)
@@ -329,7 +439,8 @@ const InternalCalc = () => {
     // Допуслуги
     extraServices.forEach((s) => {
       const count = extras[s.id] || 0;
-      if (count > 0) lines.push({ label: `${s.label} × ${count} ${s.unit}`, sum: count * s.price });
+      const price = pricing.extras[s.id] ?? s.price;
+      if (count > 0) lines.push({ label: `${s.label} × ${count} ${s.unit}`, sum: count * price });
     });
     if (wardrobeExtra > 0) lines.push({ label: 'Шкафы/комоды внутри (фикс)', sum: wardrobeExtra });
 
@@ -337,20 +448,21 @@ const InternalCalc = () => {
     let dryTotal = 0;
     dryCleaning.forEach((s) => {
       const count = dry[s.id] || 0;
+      const price = pricing.dry[s.id] ?? s.price;
       if (count > 0) {
-        const sum = count * s.price;
+        const sum = count * price;
         dryTotal += sum;
         lines.push({ label: `Химчистка: ${s.label} × ${count}`, sum });
       }
     });
 
-    if (bathrooms > 0) lines.push({ label: `Отдельный санузел/ванная × ${bathrooms}`, sum: bathrooms * 6000 });
-    if (mold) lines.push({ label: 'Обработка плесени', sum: 1500 });
-    if (polyana) lines.push({ label: 'Выезд на Красную Поляну', sum: 2000 });
+    if (bathrooms > 0) lines.push({ label: `Отдельный санузел/ванная × ${bathrooms}`, sum: bathrooms * pricing.special.bathroom });
+    if (mold) lines.push({ label: 'Обработка плесени', sum: pricing.special.mold });
+    if (polyana) lines.push({ label: 'Выезд на Красную Поляну', sum: pricing.special.polyana });
 
     const total = lines.reduce((a, l) => a + l.sum, 0);
     return { lines, total, dryTotal };
-  }, [type, area, dirt, win, panoramicPrice, filmActive, isRepair, extras, wardrobeExtra, dry, mold, polyana, bathrooms]);
+  }, [pricing, type, area, dirt, win, panoramicPrice, filmActive, isRepair, extras, wardrobeExtra, dry, mold, polyana, bathrooms]);
 
   const finalTotal = manualPrice ?? calc.total;
   const hasDiscount = manualPrice !== null && manualPrice !== calc.total;
@@ -508,7 +620,7 @@ const InternalCalc = () => {
         <header className="bg-[#003F3B] text-white">
           <div className="container mx-auto px-4 py-4 flex items-center gap-3">
             <Calculator className="w-6 h-6 text-[#41BFAE]" />
-            <div>
+            <div className="flex-1 min-w-0">
               <h1 className="font-heading font-bold text-lg leading-tight">
                 Калькулятор просчёта — для менеджеров
               </h1>
@@ -516,6 +628,15 @@ const InternalCalc = () => {
                 Внутренняя страница, в поиске не отображается. Прайс от 12.06.2026.
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowPricingPanel(true)}
+              title="Настройки цен"
+              aria-label="Настройки цен"
+              className="shrink-0 w-10 h-10 rounded-lg border border-white/10 hover:bg-white/10 flex items-center justify-center text-[#41BFAE] transition-colors"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
           </div>
         </header>
 
@@ -617,7 +738,7 @@ const InternalCalc = () => {
               )}
               <div className="space-y-3">
                 {(Object.keys(windowPrices) as (keyof typeof windowPrices)[]).map((k) => {
-                  const baseP = k === 'panoramic' ? panoramicPrice : isRepair ? windowPrices[k].repair : windowPrices[k].usual;
+                  const baseP = k === 'panoramic' ? panoramicPrice : isRepair ? pricing.windows[k].repair : pricing.windows[k].usual;
                   const effP = baseP * (filmActive ? 2 : 1);
                   return (
                     <div key={k} className="flex items-center justify-between gap-3">
@@ -655,22 +776,25 @@ const InternalCalc = () => {
             {/* Допуслуги */}
             <Section title="Дополнительные услуги">
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-                {extraServices.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm truncate">{s.label}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(s.price)} / {s.unit}</p>
+                {extraServices.map((s) => {
+                  const price = pricing.extras[s.id] ?? s.price;
+                  return (
+                    <div key={s.id} className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm truncate">{s.label}</p>
+                        <p className="text-xs text-muted-foreground">{fmt(price)} / {s.unit}</p>
+                      </div>
+                      <Counter
+                        value={extras[s.id] || 0}
+                        onChange={(v) => setExtras({ ...extras, [s.id]: v })}
+                      />
                     </div>
-                    <Counter
-                      value={extras[s.id] || 0}
-                      onChange={(v) => setExtras({ ...extras, [s.id]: v })}
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="mt-4 pt-4 border-t border-[#DDEBE8] flex flex-wrap items-center gap-2">
                 <span className="text-sm">Шкафы/комоды по квартире внутри:</span>
-                {([0, 2000, 2500] as const).map((v) => (
+                {[0, ...pricing.wardrobe].map((v) => (
                   <button
                     key={v}
                     type="button"
@@ -690,15 +814,18 @@ const InternalCalc = () => {
             {/* Химчистка */}
             <Section title="Химчистка мебели (цены «от»)">
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-                {dryCleaning.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm truncate">{s.label}</p>
-                      <p className="text-xs text-muted-foreground">от {fmt(s.price)}</p>
+                {dryCleaning.map((s) => {
+                  const price = pricing.dry[s.id] ?? s.price;
+                  return (
+                    <div key={s.id} className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm truncate">{s.label}</p>
+                        <p className="text-xs text-muted-foreground">от {fmt(price)}</p>
+                      </div>
+                      <Counter value={dry[s.id] || 0} onChange={(v) => setDry({ ...dry, [s.id]: v })} />
                     </div>
-                    <Counter value={dry[s.id] || 0} onChange={(v) => setDry({ ...dry, [s.id]: v })} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Section>
 
@@ -713,7 +840,7 @@ const InternalCalc = () => {
                     className="mt-1 accent-[#00796F] w-4 h-4"
                   />
                   <span className="text-sm">
-                    <b>Плесень (+1 500 ₽)</b> — запроси фото и согласуй с руководством. Скрипт:
+                    <b>Плесень (+{fmt(pricing.special.mold)})</b> — запроси фото и согласуй с руководством. Скрипт:
                     «Сделаем всё, чтобы отмыть плесень. В 90% случаев получается, но иногда
                     застарелые пятна въедаются и не уходят».
                   </span>
@@ -725,11 +852,11 @@ const InternalCalc = () => {
                     onChange={(e) => setPolyana(e.target.checked)}
                     className="mt-1 accent-[#00796F] w-4 h-4"
                   />
-                  <span className="text-sm"><b>Выезд на Красную Поляну</b> (+2 000 ₽)</span>
+                  <span className="text-sm"><b>Выезд на Красную Поляну</b> (+{fmt(pricing.special.polyana)})</span>
                 </label>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm">
-                    <b>Отдельный санузел/ванная</b> без уборки квартиры — 6 000 ₽/шт
+                    <b>Отдельный санузел/ванная</b> без уборки квартиры — {fmt(pricing.special.bathroom)}/шт
                   </span>
                   <Counter value={bathrooms} onChange={setBathrooms} />
                 </div>
@@ -1168,7 +1295,7 @@ const InternalCalc = () => {
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground mt-3 leading-snug">
-                Минимальный заказ — 6 000 ₽ (учитывается автоматически). Химчистка и окна
+                Минимальный заказ — {fmt(pricing.minOrder)} (учитывается автоматически). Химчистка и окна
                 считаются поверх минималки. Коэффициент загрязнённости применяется только
                 к уборке по м².
               </p>
@@ -1176,7 +1303,247 @@ const InternalCalc = () => {
           </div>
         </main>
       </div>
+
+      {showPricingPanel && (
+        <PricingPanel
+          pricing={pricing}
+          setPricing={setPricing}
+          onClose={() => setShowPricingPanel(false)}
+          onSave={savePricing}
+          onReset={resetPricing}
+          saveStatus={pricingSaveStatus}
+        />
+      )}
     </>
+  );
+};
+
+/* ====================== ПАНЕЛЬ НАСТРОЕК ЦЕН ====================== */
+
+type PricingPanelProps = {
+  pricing: PricingConfig;
+  setPricing: (p: PricingConfig) => void;
+  onClose: () => void;
+  onSave: () => void;
+  onReset: () => void;
+  saveStatus: 'idle' | 'saving' | 'ok' | 'err';
+};
+
+const PricingField = ({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) => (
+  <div className="flex items-center justify-between gap-3 py-1">
+    <span className="text-xs text-[#0D4D49]/80 truncate">{label}</span>
+    <div className="flex items-center gap-1 shrink-0">
+      <Input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
+        className="w-24 h-8 text-sm text-right px-2"
+      />
+      <span className="text-xs text-muted-foreground">₽</span>
+    </div>
+  </div>
+);
+
+const PricingGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="rounded-xl border border-[#DDEBE8] bg-white p-4">
+    <h3 className="font-heading font-bold text-sm text-[#003F3B] mb-2.5">{title}</h3>
+    <div className="space-y-1">{children}</div>
+  </div>
+);
+
+const PricingPanel = ({ pricing, setPricing, onClose, onSave, onReset, saveStatus }: PricingPanelProps) => {
+  const update = (mut: (draft: PricingConfig) => void) => {
+    const draft: PricingConfig = JSON.parse(JSON.stringify(pricing));
+    mut(draft);
+    setPricing(draft);
+  };
+
+  const cleaningRatesMeta: { key: 'wet' | 'general' | 'repair'; label: string }[] = [
+    { key: 'wet', label: 'Влажная' },
+    { key: 'general', label: 'Генеральная' },
+    { key: 'repair', label: 'После ремонта' },
+  ];
+
+  const windowsMeta: { key: keyof PricingConfig['windows']; label: string }[] = [
+    { key: 'panoramic', label: 'Панорамная створка (в пол)' },
+    { key: 'standard', label: 'Стандартная створка' },
+    { key: 'mini', label: 'Мини-окно' },
+    { key: 'balconyDoor', label: 'Балконная дверь' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex" role="dialog" aria-label="Настройки цен">
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div className="relative ml-auto w-full max-w-xl h-full bg-[#F7FAF9] shadow-2xl flex flex-col">
+        <div className="bg-[#003F3B] text-white px-5 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="font-heading font-bold text-lg leading-tight">Настройки цен</h2>
+            <p className="text-xs text-white/60">Общие для всех менеджеров</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Закрыть"
+            className="w-9 h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-[#41BFAE]"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto px-5 py-5 space-y-4">
+          <PricingGroup title="Минимальный заказ">
+            <PricingField
+              label="Минимальная сумма заказа"
+              value={pricing.minOrder}
+              onChange={(v) => update((d) => { d.minOrder = v; })}
+            />
+          </PricingGroup>
+
+          <PricingGroup title="Ставки за м²">
+            {cleaningRatesMeta.map(({ key, label }) => (
+              <div key={key} className="mb-3 last:mb-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">{label}</p>
+                {pricing.rates[key].map((b, idx, arr) => (
+                  <PricingField
+                    key={idx}
+                    label={rateBracketLabel(b.upTo, idx, arr)}
+                    value={b.price}
+                    onChange={(v) => update((d) => { d.rates[key][idx].price = v; })}
+                  />
+                ))}
+              </div>
+            ))}
+            <div className="pt-2 mt-2 border-t border-[#DDEBE8]">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Всё включено</p>
+              <PricingField
+                label="Цена за м²"
+                value={pricing.rates.allInclusive}
+                onChange={(v) => update((d) => { d.rates.allInclusive = v; })}
+              />
+            </div>
+          </PricingGroup>
+
+          <PricingGroup title="Окна">
+            {windowsMeta.map(({ key, label }) => (
+              <div key={key} className="mb-2 last:mb-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">{label}</p>
+                <PricingField
+                  label="Обычная уборка"
+                  value={pricing.windows[key].usual}
+                  onChange={(v) => update((d) => { d.windows[key].usual = v; })}
+                />
+                <PricingField
+                  label="После ремонта"
+                  value={pricing.windows[key].repair}
+                  onChange={(v) => update((d) => { d.windows[key].repair = v; })}
+                />
+              </div>
+            ))}
+          </PricingGroup>
+
+          <PricingGroup title="Дополнительные услуги">
+            {extraServices.map((s) => (
+              <PricingField
+                key={s.id}
+                label={s.label}
+                value={pricing.extras[s.id] ?? 0}
+                onChange={(v) => update((d) => { d.extras[s.id] = v; })}
+              />
+            ))}
+          </PricingGroup>
+
+          <PricingGroup title="Химчистка">
+            {dryCleaning.map((s) => (
+              <PricingField
+                key={s.id}
+                label={s.label}
+                value={pricing.dry[s.id] ?? 0}
+                onChange={(v) => update((d) => { d.dry[s.id] = v; })}
+              />
+            ))}
+          </PricingGroup>
+
+          <PricingGroup title="Шкафы/комоды (фикс)">
+            {pricing.wardrobe.map((v, idx) => (
+              <PricingField
+                key={idx}
+                label={`Вариант ${idx + 1}`}
+                value={v}
+                onChange={(nv) => update((d) => { d.wardrobe[idx] = nv; })}
+              />
+            ))}
+          </PricingGroup>
+
+          <PricingGroup title="Особые случаи">
+            <PricingField
+              label="Отдельный санузел/ванная"
+              value={pricing.special.bathroom}
+              onChange={(v) => update((d) => { d.special.bathroom = v; })}
+            />
+            <PricingField
+              label="Обработка плесени"
+              value={pricing.special.mold}
+              onChange={(v) => update((d) => { d.special.mold = v; })}
+            />
+            <PricingField
+              label="Выезд на Красную Поляну"
+              value={pricing.special.polyana}
+              onChange={(v) => update((d) => { d.special.polyana = v; })}
+            />
+          </PricingGroup>
+        </div>
+
+        <div className="border-t border-[#DDEBE8] bg-white px-5 py-4 space-y-2">
+          {saveStatus !== 'idle' && (
+            <p className={`text-xs text-center ${
+              saveStatus === 'ok' ? 'text-emerald-700'
+              : saveStatus === 'err' ? 'text-red-700'
+              : 'text-muted-foreground'
+            }`}>
+              {saveStatus === 'saving' && 'Сохраняем…'}
+              {saveStatus === 'ok' && 'Сохранено для всех ✓'}
+              {saveStatus === 'err' && 'Ошибка, попробуйте ещё раз'}
+            </p>
+          )}
+          <Button
+            onClick={onSave}
+            disabled={saveStatus === 'saving'}
+            className="w-full rounded-xl bg-[#00796F] hover:bg-[#003F3B] text-white"
+          >
+            {saveStatus === 'saving' ? 'Сохраняем…' : 'Сохранить для всех'}
+          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              onClick={onReset}
+              className="rounded-xl border-[#DDEBE8] text-[#0D4D49]"
+            >
+              Сбросить к стандартным
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="rounded-xl border-[#DDEBE8] text-[#0D4D49]"
+            >
+              Закрыть
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

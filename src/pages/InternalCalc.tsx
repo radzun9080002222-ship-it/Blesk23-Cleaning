@@ -1295,7 +1295,7 @@ const InternalCalc = () => {
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground mt-3 leading-snug">
-                Минимальный заказ — 6 000 ₽ (учитывается автоматически). Химчистка и окна
+                Минимальный заказ — {fmt(pricing.minOrder)} (учитывается автоматически). Химчистка и окна
                 считаются поверх минималки. Коэффициент загрязнённости применяется только
                 к уборке по м².
               </p>
@@ -1303,7 +1303,247 @@ const InternalCalc = () => {
           </div>
         </main>
       </div>
+
+      {showPricingPanel && (
+        <PricingPanel
+          pricing={pricing}
+          setPricing={setPricing}
+          onClose={() => setShowPricingPanel(false)}
+          onSave={savePricing}
+          onReset={resetPricing}
+          saveStatus={pricingSaveStatus}
+        />
+      )}
     </>
+  );
+};
+
+/* ====================== ПАНЕЛЬ НАСТРОЕК ЦЕН ====================== */
+
+type PricingPanelProps = {
+  pricing: PricingConfig;
+  setPricing: (p: PricingConfig) => void;
+  onClose: () => void;
+  onSave: () => void;
+  onReset: () => void;
+  saveStatus: 'idle' | 'saving' | 'ok' | 'err';
+};
+
+const PricingField = ({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) => (
+  <div className="flex items-center justify-between gap-3 py-1">
+    <span className="text-xs text-[#0D4D49]/80 truncate">{label}</span>
+    <div className="flex items-center gap-1 shrink-0">
+      <Input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
+        className="w-24 h-8 text-sm text-right px-2"
+      />
+      <span className="text-xs text-muted-foreground">₽</span>
+    </div>
+  </div>
+);
+
+const PricingGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="rounded-xl border border-[#DDEBE8] bg-white p-4">
+    <h3 className="font-heading font-bold text-sm text-[#003F3B] mb-2.5">{title}</h3>
+    <div className="space-y-1">{children}</div>
+  </div>
+);
+
+const PricingPanel = ({ pricing, setPricing, onClose, onSave, onReset, saveStatus }: PricingPanelProps) => {
+  const update = (mut: (draft: PricingConfig) => void) => {
+    const draft: PricingConfig = JSON.parse(JSON.stringify(pricing));
+    mut(draft);
+    setPricing(draft);
+  };
+
+  const cleaningRatesMeta: { key: 'wet' | 'general' | 'repair'; label: string }[] = [
+    { key: 'wet', label: 'Влажная' },
+    { key: 'general', label: 'Генеральная' },
+    { key: 'repair', label: 'После ремонта' },
+  ];
+
+  const windowsMeta: { key: keyof PricingConfig['windows']; label: string }[] = [
+    { key: 'panoramic', label: 'Панорамная створка (в пол)' },
+    { key: 'standard', label: 'Стандартная створка' },
+    { key: 'mini', label: 'Мини-окно' },
+    { key: 'balconyDoor', label: 'Балконная дверь' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex" role="dialog" aria-label="Настройки цен">
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div className="relative ml-auto w-full max-w-xl h-full bg-[#F7FAF9] shadow-2xl flex flex-col">
+        <div className="bg-[#003F3B] text-white px-5 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="font-heading font-bold text-lg leading-tight">Настройки цен</h2>
+            <p className="text-xs text-white/60">Общие для всех менеджеров</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Закрыть"
+            className="w-9 h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-[#41BFAE]"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto px-5 py-5 space-y-4">
+          <PricingGroup title="Минимальный заказ">
+            <PricingField
+              label="Минимальная сумма заказа"
+              value={pricing.minOrder}
+              onChange={(v) => update((d) => { d.minOrder = v; })}
+            />
+          </PricingGroup>
+
+          <PricingGroup title="Ставки за м²">
+            {cleaningRatesMeta.map(({ key, label }) => (
+              <div key={key} className="mb-3 last:mb-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">{label}</p>
+                {pricing.rates[key].map((b, idx, arr) => (
+                  <PricingField
+                    key={idx}
+                    label={rateBracketLabel(b.upTo, idx, arr)}
+                    value={b.price}
+                    onChange={(v) => update((d) => { d.rates[key][idx].price = v; })}
+                  />
+                ))}
+              </div>
+            ))}
+            <div className="pt-2 mt-2 border-t border-[#DDEBE8]">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Всё включено</p>
+              <PricingField
+                label="Цена за м²"
+                value={pricing.rates.allInclusive}
+                onChange={(v) => update((d) => { d.rates.allInclusive = v; })}
+              />
+            </div>
+          </PricingGroup>
+
+          <PricingGroup title="Окна">
+            {windowsMeta.map(({ key, label }) => (
+              <div key={key} className="mb-2 last:mb-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">{label}</p>
+                <PricingField
+                  label="Обычная уборка"
+                  value={pricing.windows[key].usual}
+                  onChange={(v) => update((d) => { d.windows[key].usual = v; })}
+                />
+                <PricingField
+                  label="После ремонта"
+                  value={pricing.windows[key].repair}
+                  onChange={(v) => update((d) => { d.windows[key].repair = v; })}
+                />
+              </div>
+            ))}
+          </PricingGroup>
+
+          <PricingGroup title="Дополнительные услуги">
+            {extraServices.map((s) => (
+              <PricingField
+                key={s.id}
+                label={s.label}
+                value={pricing.extras[s.id] ?? 0}
+                onChange={(v) => update((d) => { d.extras[s.id] = v; })}
+              />
+            ))}
+          </PricingGroup>
+
+          <PricingGroup title="Химчистка">
+            {dryCleaning.map((s) => (
+              <PricingField
+                key={s.id}
+                label={s.label}
+                value={pricing.dry[s.id] ?? 0}
+                onChange={(v) => update((d) => { d.dry[s.id] = v; })}
+              />
+            ))}
+          </PricingGroup>
+
+          <PricingGroup title="Шкафы/комоды (фикс)">
+            {pricing.wardrobe.map((v, idx) => (
+              <PricingField
+                key={idx}
+                label={`Вариант ${idx + 1}`}
+                value={v}
+                onChange={(nv) => update((d) => { d.wardrobe[idx] = nv; })}
+              />
+            ))}
+          </PricingGroup>
+
+          <PricingGroup title="Особые случаи">
+            <PricingField
+              label="Отдельный санузел/ванная"
+              value={pricing.special.bathroom}
+              onChange={(v) => update((d) => { d.special.bathroom = v; })}
+            />
+            <PricingField
+              label="Обработка плесени"
+              value={pricing.special.mold}
+              onChange={(v) => update((d) => { d.special.mold = v; })}
+            />
+            <PricingField
+              label="Выезд на Красную Поляну"
+              value={pricing.special.polyana}
+              onChange={(v) => update((d) => { d.special.polyana = v; })}
+            />
+          </PricingGroup>
+        </div>
+
+        <div className="border-t border-[#DDEBE8] bg-white px-5 py-4 space-y-2">
+          {saveStatus !== 'idle' && (
+            <p className={`text-xs text-center ${
+              saveStatus === 'ok' ? 'text-emerald-700'
+              : saveStatus === 'err' ? 'text-red-700'
+              : 'text-muted-foreground'
+            }`}>
+              {saveStatus === 'saving' && 'Сохраняем…'}
+              {saveStatus === 'ok' && 'Сохранено для всех ✓'}
+              {saveStatus === 'err' && 'Ошибка, попробуйте ещё раз'}
+            </p>
+          )}
+          <Button
+            onClick={onSave}
+            disabled={saveStatus === 'saving'}
+            className="w-full rounded-xl bg-[#00796F] hover:bg-[#003F3B] text-white"
+          >
+            {saveStatus === 'saving' ? 'Сохраняем…' : 'Сохранить для всех'}
+          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              onClick={onReset}
+              className="rounded-xl border-[#DDEBE8] text-[#0D4D49]"
+            >
+              Сбросить к стандартным
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="rounded-xl border-[#DDEBE8] text-[#0D4D49]"
+            >
+              Закрыть
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

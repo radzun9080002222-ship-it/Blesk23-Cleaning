@@ -403,7 +403,7 @@ const InternalCalc = () => {
   const switchType = (t: CleaningType) => {
     setType(t);
     setCleanersOverride(null);
-    setPanoramicPrice(t === 'repair' ? windowPrices.panoramic.repair : windowPrices.panoramic.usual);
+    setPanoramicPrice(t === 'repair' ? pricing.windows.panoramic.repair : pricing.windows.panoramic.usual);
     if (t !== 'repair') setWindowFilm(false);
   };
 
@@ -411,10 +411,10 @@ const InternalCalc = () => {
     const lines: { label: string; sum: number }[] = [];
 
     // Основная уборка (коэффициент загрязнённости — только сюда)
-    const rate = rateFor(type, area);
+    const rate = rateForPricing(pricing, type, area);
     const k = clampDirt(dirt);
     const baseRaw = area > 0 ? Math.round(area * rate * k) : 0;
-    const base = area > 0 ? Math.max(baseRaw, MIN_ORDER) : 0;
+    const base = area > 0 ? Math.max(baseRaw, pricing.minOrder) : 0;
     if (area > 0) {
       const kTxt = k !== 1 ? ` × ${k.toFixed(1)} (загрязнённости)` : '';
       lines.push({
@@ -426,7 +426,7 @@ const InternalCalc = () => {
     // Окна (плёнка ×2 — только после ремонта)
     const filmK = filmActive ? 2 : 1;
     const wp = (key: keyof typeof windowPrices) =>
-      (key === 'panoramic' ? panoramicPrice : isRepair ? windowPrices[key].repair : windowPrices[key].usual) * filmK;
+      (key === 'panoramic' ? panoramicPrice : isRepair ? pricing.windows[key].repair : pricing.windows[key].usual) * filmK;
     (Object.keys(windowPrices) as (keyof typeof windowPrices)[]).forEach((key) => {
       const count = win[key];
       if (count > 0)
@@ -439,7 +439,8 @@ const InternalCalc = () => {
     // Допуслуги
     extraServices.forEach((s) => {
       const count = extras[s.id] || 0;
-      if (count > 0) lines.push({ label: `${s.label} × ${count} ${s.unit}`, sum: count * s.price });
+      const price = pricing.extras[s.id] ?? s.price;
+      if (count > 0) lines.push({ label: `${s.label} × ${count} ${s.unit}`, sum: count * price });
     });
     if (wardrobeExtra > 0) lines.push({ label: 'Шкафы/комоды внутри (фикс)', sum: wardrobeExtra });
 
@@ -447,20 +448,21 @@ const InternalCalc = () => {
     let dryTotal = 0;
     dryCleaning.forEach((s) => {
       const count = dry[s.id] || 0;
+      const price = pricing.dry[s.id] ?? s.price;
       if (count > 0) {
-        const sum = count * s.price;
+        const sum = count * price;
         dryTotal += sum;
         lines.push({ label: `Химчистка: ${s.label} × ${count}`, sum });
       }
     });
 
-    if (bathrooms > 0) lines.push({ label: `Отдельный санузел/ванная × ${bathrooms}`, sum: bathrooms * 6000 });
-    if (mold) lines.push({ label: 'Обработка плесени', sum: 1500 });
-    if (polyana) lines.push({ label: 'Выезд на Красную Поляну', sum: 2000 });
+    if (bathrooms > 0) lines.push({ label: `Отдельный санузел/ванная × ${bathrooms}`, sum: bathrooms * pricing.special.bathroom });
+    if (mold) lines.push({ label: 'Обработка плесени', sum: pricing.special.mold });
+    if (polyana) lines.push({ label: 'Выезд на Красную Поляну', sum: pricing.special.polyana });
 
     const total = lines.reduce((a, l) => a + l.sum, 0);
     return { lines, total, dryTotal };
-  }, [type, area, dirt, win, panoramicPrice, filmActive, isRepair, extras, wardrobeExtra, dry, mold, polyana, bathrooms]);
+  }, [pricing, type, area, dirt, win, panoramicPrice, filmActive, isRepair, extras, wardrobeExtra, dry, mold, polyana, bathrooms]);
 
   const finalTotal = manualPrice ?? calc.total;
   const hasDiscount = manualPrice !== null && manualPrice !== calc.total;

@@ -131,7 +131,7 @@ const rateBracketLabel = (upTo: number | null, idx: number, arr: { upTo: number 
   return `до ${upTo} м²`;
 };
 
-const MIN_ORDER = 6000;
+
 
 /* ====================== МАРЖИНАЛЬНОСТЬ ====================== */
 // Дефолты — из фин.модели (ОПУ за год). Все значения можно править

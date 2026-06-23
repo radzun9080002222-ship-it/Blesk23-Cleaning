@@ -287,16 +287,61 @@ const clampDirt = (v: number) => Math.min(3, Math.max(1, v));
 /* ====================== СТРАНИЦА ====================== */
 
 const InternalCalc = () => {
+  // ===== ОБЩИЕ ЦЕНЫ (Supabase) =====
+  const [pricing, setPricing] = useState<PricingConfig>(PRICING_DEFAULTS);
+  const [showPricingPanel, setShowPricingPanel] = useState(false);
+  const [pricingSaveStatus, setPricingSaveStatus] = useState<'idle' | 'saving' | 'ok' | 'err'>('idle');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('pricing_config')
+          .select('data')
+          .eq('id', 'default')
+          .maybeSingle();
+        if (cancelled) return;
+        if (!error && data?.data) {
+          setPricing(mergePricing(data.data));
+        }
+      } catch {
+        // молча игнорируем — работаем на дефолтах
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const savePricing = async () => {
+    setPricingSaveStatus('saving');
+    try {
+      const { error } = await supabase
+        .from('pricing_config')
+        .upsert({ id: 'default', data: pricing as any, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      setPricingSaveStatus('ok');
+      setTimeout(() => setPricingSaveStatus('idle'), 2500);
+    } catch (e) {
+      console.error(e);
+      setPricingSaveStatus('err');
+      setTimeout(() => setPricingSaveStatus('idle'), 3500);
+    }
+  };
+
+  const resetPricing = () => setPricing(PRICING_DEFAULTS);
+
+  const rateFor = (t: CleaningType, a: number) => rateForPricing(pricing, t, a);
+
   const [type, setType] = useState<CleaningType>('wet');
   const [area, setArea] = useState<number>(0);
   const [dirt, setDirt] = useState<number>(1.0);
 
   const [win, setWin] = useState({ panoramic: 0, standard: 0, mini: 0, balconyDoor: 0 });
-  const [panoramicPrice, setPanoramicPrice] = useState<number>(windowPrices.panoramic.usual);
+  const [panoramicPrice, setPanoramicPrice] = useState<number>(PRICING_DEFAULTS.windows.panoramic.usual);
   const [windowFilm, setWindowFilm] = useState(false);
 
   const [extras, setExtras] = useState<Record<string, number>>({});
-  const [wardrobeExtra, setWardrobeExtra] = useState<0 | 2000 | 2500>(0);
+  const [wardrobeExtra, setWardrobeExtra] = useState<number>(0);
   const [dry, setDry] = useState<Record<string, number>>({});
 
   const [mold, setMold] = useState(false);

@@ -28,16 +28,16 @@ import FurnitureLeadForm from '@/components/furniture/FurnitureLeadForm';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.jpg';
 
-import heroImg from '@/assets/furniture/hero.jpg.asset.json';
-import heroVideo from '@/assets/furniture/video-hero.mp4.asset.json';
-import komandaImg from '@/assets/furniture/komanda.jpg.asset.json';
-import oborudovanieImg from '@/assets/furniture/oborudovanie.jpg.asset.json';
-import doImg from '@/assets/furniture/do-posle-divan-do.jpg.asset.json';
-import posleImg from '@/assets/furniture/do-posle-divan-posle-alt.jpg.asset.json';
-import process1 from '@/assets/furniture/process-1.jpg.asset.json';
-import process2 from '@/assets/furniture/process-2.jpg.asset.json';
-import process3 from '@/assets/furniture/process-3.jpg.asset.json';
-import result1 from '@/assets/furniture/result-1.jpg.asset.json';
+const heroImg = { url: '/images/himchistka/hero.jpg' };
+const heroVideo = { url: '/images/himchistka/video-hero.mp4' };
+const komandaImg = { url: '/images/himchistka/komanda.jpg' };
+const oborudovanieImg = { url: '/images/himchistka/oborudovanie.jpg' };
+const doImg = { url: '/images/himchistka/do-posle-divan-do.jpg' };
+const posleImg = { url: '/images/himchistka/do-posle-divan-posle-alt.jpg' };
+const process1 = { url: '/images/himchistka/process-1.jpg' };
+const process2 = { url: '/images/himchistka/process-2.jpg' };
+const process3 = { url: '/images/himchistka/process-3.jpg' };
+const result1 = { url: '/images/himchistka/result-1.jpg' };
 
 const USE_HERO_VIDEO = false; // переключить в true когда будет HD-версия
 

@@ -12,6 +12,7 @@ import HouseCleaning from "./pages/HouseCleaning";
 import AfterRepairCleaning from "./pages/AfterRepairCleaning";
 import FurnitureCleaning from "./pages/FurnitureCleaning";
 import OfficeCleaning from "./pages/OfficeCleaning";
+import WindowsCleaning from "./pages/WindowsCleaning";
 import InternalCalc from "./pages/InternalCalc";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
 <Route path="/uborka-posle-remonta-sochi" element={<AfterRepairCleaning />} />
 <Route path="/himchistka-mebeli-sochi" element={<FurnitureCleaning />} />
 <Route path="/uborka-oficov" element={<OfficeCleaning />} />
+<Route path="/moyka-okon-sochi" element={<WindowsCleaning />} />
 
 {/* internal, noindex */}
 <Route path="/calc" element={<InternalCalc />} />

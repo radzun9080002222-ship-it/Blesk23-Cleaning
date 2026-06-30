@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react';
 
 import serviceApartments from '@/assets/service-apartments.jpg';
 import serviceOffices from '@/assets/service-offices.jpg';
-import serviceCommercial from '@/assets/service-commercial.jpg';
+const serviceWindows = '/images/okna/hero.jpg';
 import serviceDrycleaning from '@/assets/service-drycleaning.jpg';
 import serviceRenovation from '@/assets/service-renovation.jpg';
 import serviceExtra from '@/assets/service-extra.jpg';
@@ -22,10 +22,10 @@ const services = [
     link: '/uborka-oficov',
   },
   {
-    title: 'Коммерческие объекты',
-    price: 'по договору',
-    image: serviceCommercial,
-    link: null,
+    title: 'Мойка окон',
+    price: 'от 400 ₽',
+    image: serviceWindows,
+    link: '/moyka-okon-sochi',
   },
   {
     title: 'Химчистка мебели',

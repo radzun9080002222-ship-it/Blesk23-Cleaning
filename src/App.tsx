@@ -12,6 +12,7 @@ import HouseCleaning from "./pages/HouseCleaning";
 import AfterRepairCleaning from "./pages/AfterRepairCleaning";
 import FurnitureCleaning from "./pages/FurnitureCleaning";
 import OfficeCleaning from "./pages/OfficeCleaning";
+import WindowsCleaning from "./pages/WindowsCleaning";
 import InternalCalc from "./pages/InternalCalc";
 
 const queryClient = new QueryClient();

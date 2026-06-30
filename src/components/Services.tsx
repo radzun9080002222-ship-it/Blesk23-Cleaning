@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react';
 
 import serviceApartments from '@/assets/service-apartments.jpg';
 import serviceOffices from '@/assets/service-offices.jpg';
-import serviceWindows from '/images/okna/hero.jpg?url';
+const serviceWindows = '/images/okna/hero.jpg';
 import serviceDrycleaning from '@/assets/service-drycleaning.jpg';
 import serviceRenovation from '@/assets/service-renovation.jpg';
 import serviceExtra from '@/assets/service-extra.jpg';

@@ -22,10 +22,10 @@ const services = [
     link: '/uborka-oficov',
   },
   {
-    title: 'Коммерческие объекты',
-    price: 'по договору',
-    image: serviceCommercial,
-    link: null,
+    title: 'Мойка окон',
+    price: 'от 400 ₽',
+    image: serviceWindows,
+    link: '/moyka-okon-sochi',
   },
   {
     title: 'Химчистка мебели',

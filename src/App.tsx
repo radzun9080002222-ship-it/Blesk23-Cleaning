@@ -5,15 +5,19 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 
+import { lazy, Suspense } from "react";
+
 import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import ApartmentCleaning from "./pages/ApartmentCleaning";
-import HouseCleaning from "./pages/HouseCleaning";
-import AfterRepairCleaning from "./pages/AfterRepairCleaning";
-import FurnitureCleaning from "./pages/FurnitureCleaning";
-import OfficeCleaning from "./pages/OfficeCleaning";
-import WindowsCleaning from "./pages/WindowsCleaning";
-import InternalCalc from "./pages/InternalCalc";
+import FloatingContact from "./components/FloatingContact";
+
+const NotFound = lazy(() => import("./pages/NotFound"));
+const ApartmentCleaning = lazy(() => import("./pages/ApartmentCleaning"));
+const HouseCleaning = lazy(() => import("./pages/HouseCleaning"));
+const AfterRepairCleaning = lazy(() => import("./pages/AfterRepairCleaning"));
+const FurnitureCleaning = lazy(() => import("./pages/FurnitureCleaning"));
+const OfficeCleaning = lazy(() => import("./pages/OfficeCleaning"));
+const WindowsCleaning = lazy(() => import("./pages/WindowsCleaning"));
+const InternalCalc = lazy(() => import("./pages/InternalCalc"));
 
 const queryClient = new QueryClient();
 
@@ -25,6 +29,7 @@ const App = () => (
 <Sonner />
 
 <BrowserRouter basename="/">
+<Suspense fallback={null}>
 <Routes>
 <Route path="/" element={<Index />} />
 <Route path="/uborka-kvartir-sochi" element={<ApartmentCleaning />} />
@@ -40,6 +45,8 @@ const App = () => (
 {/* catch-all */}
 <Route path="*" element={<NotFound />} />
 </Routes>
+</Suspense>
+<FloatingContact />
 </BrowserRouter>
 
 </TooltipProvider>

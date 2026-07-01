@@ -37,6 +37,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Optimize images
+        run: >-
+          find dist -type f \( -iname '*.jpg' -o -iname '*.jpeg' \)
+          -exec mogrify -resize '1600x1600>' -quality 78 -strip {} +
+
       - name: Disable Jekyll
         run: touch dist/.nojekyll
 

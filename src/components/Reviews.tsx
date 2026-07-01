@@ -84,6 +84,17 @@ const Reviews = () => {
             </div>
           ))}
         </div>
+
+        <div className="mt-12 text-center">
+          <a
+            href="https://yandex.ru/maps/org/21130859655/reviews"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-primary/30 text-primary font-medium hover:bg-primary/5 transition-colors"
+          >
+            Все отзывы о нас в Яндекс Картах — рейтинг 5.0
+          </a>
+        </div>
       </div>
     </section>
   );

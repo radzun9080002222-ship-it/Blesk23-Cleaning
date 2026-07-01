@@ -75,17 +75,24 @@ const Hero = () => {
 
               <div className="absolute bottom-6 left-6 right-6">
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-card/90 backdrop-blur-sm rounded-xl p-3 text-center">
+                  <div className="flex flex-col items-center justify-center bg-card/90 backdrop-blur-sm rounded-xl p-3 text-center min-h-[64px]">
                     <span className="block font-heading text-2xl font-bold text-primary">5+</span>
                     <span className="text-xs text-muted-foreground">Лет опыта</span>
                   </div>
-                  <div className="bg-card/90 backdrop-blur-sm rounded-xl p-3 text-center">
+                  <div className="flex flex-col items-center justify-center bg-card/90 backdrop-blur-sm rounded-xl p-3 text-center min-h-[64px]">
                     <span className="block font-heading text-2xl font-bold text-secondary">1000+</span>
                     <span className="text-xs text-muted-foreground">Клиентов</span>
                   </div>
-                  <div className="bg-card/90 backdrop-blur-sm rounded-xl p-3 text-center">
-                    <span className="block font-heading text-2xl font-bold">4.9</span>
-                    <span className="text-xs text-muted-foreground">Рейтинг</span>
+                  <div className="flex items-center justify-center bg-card/90 backdrop-blur-sm rounded-xl p-2 min-h-[64px] overflow-hidden">
+                    <iframe
+                      src="https://yandex.ru/sprav/widget/rating-badge/21130859655?type=rating"
+                      width="150"
+                      height="50"
+                      frameBorder="0"
+                      loading="lazy"
+                      title="Рейтинг Империя Блеска на Яндекс Картах"
+                      className="max-w-full"
+                    />
                   </div>
                 </div>
               </div>

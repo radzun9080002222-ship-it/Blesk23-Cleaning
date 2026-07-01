@@ -7,7 +7,7 @@ const Hero = () => {
   const features = [
     { icon: Shield, text: 'Гарантия качества' },
     { icon: Clock, text: 'Выезд в день заказа' },
-    { icon: Star, text: 'Рейтинг 4.9' },
+    { icon: Star, text: 'Рейтинг 5.0' },
   ];
 
   return (

@@ -49,7 +49,7 @@ const ServicePageLayout = ({
       <Helmet>
         <title>{metaTitle}</title>
         <meta name="description" content={metaDescription} />
-        <link rel="canonical" href={`https://imperiableska.ru${window.location.pathname}`} />
+        <link rel="canonical" href={`https://www.blesk23.ru${window.location.pathname}`} />
       </Helmet>
 
       <Header />

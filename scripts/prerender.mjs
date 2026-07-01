@@ -71,6 +71,8 @@ for (const [route, meta] of Object.entries(routes)) {
     const dir = join(dist, route.slice(1));
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'index.html'), html);
+    // и копия <route>.html — GitHub Pages отдаёт её по точному URL без редиректа
+    writeFileSync(join(dist, route.slice(1) + '.html'), html);
   }
   console.log('prerendered', route);
 }

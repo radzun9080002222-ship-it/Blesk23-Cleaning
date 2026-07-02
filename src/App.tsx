@@ -18,6 +18,7 @@ const FurnitureCleaning = lazy(() => import("./pages/FurnitureCleaning"));
 const OfficeCleaning = lazy(() => import("./pages/OfficeCleaning"));
 const WindowsCleaning = lazy(() => import("./pages/WindowsCleaning"));
 const InternalCalc = lazy(() => import("./pages/InternalCalc"));
+const Privacy = lazy(() => import("./pages/Privacy"));
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,8 @@ const App = () => (
 <Route path="/himchistka-mebeli-sochi" element={<FurnitureCleaning />} />
 <Route path="/uborka-oficov" element={<OfficeCleaning />} />
 <Route path="/moyka-okon-sochi" element={<WindowsCleaning />} />
+
+<Route path="/privacy" element={<Privacy />} />
 
 {/* internal, noindex */}
 <Route path="/calc" element={<InternalCalc />} />

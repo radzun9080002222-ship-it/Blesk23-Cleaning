@@ -1,5 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Link } from 'react-router-dom';
 import {
   Phone,
@@ -145,6 +151,14 @@ const districts = [
   'Мацеста',
 ];
 
+const faqExtra = [
+  { q: 'Сколько сохнет диван после химчистки?', a: '3–6 часов, вечером уже можно пользоваться.' },
+  { q: 'Сколько стоит химчистка дивана?', a: 'Двухместный — от 4 000 ₽, трёхместный — от 5 500 ₽, угловой — от 7 500 ₽.' },
+  { q: 'Уберёте запах и пятна?', a: 'Да, экстракторный метод вытягивает загрязнения из глубины ткани: пятна, запахи, аллергены.' },
+  { q: 'Это безопасно для детей и животных?', a: 'Да, средства гипоаллергенны и полностью вымываются из ткани.' },
+  { q: 'Чистите матрасы, ковры, шторы?', a: 'Да: матрасы, ковры, шторы, кресла, стулья — всё на дому, без вывоза.' },
+];
+
 const FurnitureCleaning = () => {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const formRef = useRef<HTMLDivElement>(null);
@@ -194,7 +208,7 @@ const FurnitureCleaning = () => {
       reviewCount: '41',
     },
     areaServed: ['Сочи', 'Адлер', 'Красная Поляна'],
-    openingHours: 'Mo-Su 08:00-20:00',
+    openingHours: 'Mo-Su 08:00-23:00',
   };
 
   return (
@@ -211,6 +225,17 @@ const FurnitureCleaning = () => {
           rel="canonical"
           href="https://www.blesk23.ru/himchistka-mebeli-sochi"
         />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: faqExtra.map((f) => ({
+              '@type': 'Question',
+              name: f.q,
+              acceptedAnswer: { '@type': 'Answer', text: f.a },
+            })),
+          })}
+        </script>
         <script type="application/ld+json">
           {JSON.stringify(localBusinessJsonLd)}
         </script>
@@ -613,7 +638,7 @@ const FurnitureCleaning = () => {
               Выезжаем по всему Большому Сочи
             </h2>
             <p className="text-muted-foreground mb-6">
-              Работаем ежедневно 8:00–20:00. Выезд в день обращения.
+              Работаем ежедневно 8:00–23:00. Выезд в день обращения.
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               {districts.map((d) => (
@@ -744,6 +769,31 @@ const FurnitureCleaning = () => {
               </p>
             </article>
           </details>
+        </section>
+
+        {/* FAQ */}
+        <section className="py-16 md:py-24">
+          <div className="container mx-auto px-4 max-w-3xl">
+            <h2 className="font-heading text-3xl md:text-4xl font-bold text-center mb-10">
+              Частые вопросы
+            </h2>
+            <Accordion type="single" collapsible className="space-y-3">
+              {faqExtra.map((f, i) => (
+                <AccordionItem
+                  key={i}
+                  value={`faq-${i}`}
+                  className="rounded-2xl border border-[#DDEBE8] bg-white px-5"
+                >
+                  <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                    {f.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground leading-relaxed">
+                    {f.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
         </section>
 
         {/* Related */}

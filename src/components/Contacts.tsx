@@ -61,7 +61,7 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
       {
         icon: Clock,
         label: "Часы работы",
-        value: "Ежедневно с 8:00 до 20:00",
+        value: "Ежедневно с 8:00 до 23:00",
         href: null as string | null,
       },
     ],
@@ -315,8 +315,8 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
 
                 <p className="text-xs text-muted-foreground text-center">
                   Нажимая кнопку, вы соглашаетесь с{" "}
-                  <a href="#" className="text-primary hover:underline">
-                    политикой конфиденциальности
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    политикой обработки персональных данных
                   </a>
                 </p>
               </form>

@@ -1,4 +1,10 @@
 import { Helmet } from 'react-helmet-async';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { ArrowRight, Phone, CheckCircle, MessageCircle, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -17,8 +23,14 @@ interface Advantage {
   description: string;
 }
 
+interface FaqItem {
+  q: string;
+  a: string;
+}
+
 interface ServicePageLayoutProps {
   title: string;
+  faq?: FaqItem[];
   metaTitle: string;
   metaDescription: string;
   heroDescription: string;
@@ -31,6 +43,7 @@ interface ServicePageLayoutProps {
 
 const ServicePageLayout = ({
   title,
+  faq,
   metaTitle,
   metaDescription,
   heroDescription,
@@ -50,6 +63,19 @@ const ServicePageLayout = ({
         <title>{metaTitle}</title>
         <meta name="description" content={metaDescription} />
         <link rel="canonical" href={`https://www.blesk23.ru${window.location.pathname}`} />
+        {faq && faq.length > 0 && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: faq.map((f) => ({
+                '@type': 'Question',
+                name: f.q,
+                acceptedAnswer: { '@type': 'Answer', text: f.a },
+              })),
+            })}
+          </script>
+        )}
       </Helmet>
 
       <Header />
@@ -242,6 +268,33 @@ const ServicePageLayout = ({
             </div>
           </div>
         </section>
+
+        {/* FAQ */}
+        {faq && faq.length > 0 && (
+          <section className="py-16 relative">
+            <div className="container mx-auto px-4 max-w-3xl">
+              <h2 className="font-heading text-3xl md:text-4xl font-bold text-center mb-10">
+                Частые вопросы
+              </h2>
+              <Accordion type="single" collapsible className="space-y-3">
+                {faq.map((f, i) => (
+                  <AccordionItem
+                    key={i}
+                    value={`q-${i}`}
+                    className="rounded-2xl border border-border bg-card px-5"
+                  >
+                    <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                      {f.q}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground leading-relaxed">
+                      {f.a}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          </section>
+        )}
 
         {/* Related Services */}
         <section className="py-16 relative">

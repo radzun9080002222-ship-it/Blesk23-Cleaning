@@ -1,5 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Link } from 'react-router-dom';
 import {
   Phone,
@@ -136,6 +142,14 @@ const districts = [
   'Мацеста',
 ];
 
+const faqExtra = [
+  { q: 'Сколько стоит помыть окна?', a: 'От 400 ₽ за мини-окно, стандартная створка — от 500 ₽, панорамная — от 1 200 ₽. Точная цена — в калькуляторе на этой странице.' },
+  { q: 'Моете панорамное остекление на высоте?', a: 'Да, работаем с панорамными окнами и труднодоступными местами со специальным оборудованием.' },
+  { q: 'Останутся ли разводы?', a: 'Нет. Моем профессиональными средствами и скребками, используем парогенераторы — стекло прозрачное, без подтёков.' },
+  { q: 'Убираете следы ремонта с окон?', a: 'Да: плёнку, скотч, краску, цемент. Для окон после ремонта отдельный тариф — от 750 ₽ за створку.' },
+  { q: 'Как быстро приедете?', a: 'В день обращения. Работаем ежедневно с 8:00 до 23:00, без выходных.' },
+];
+
 const WindowsCleaning = () => {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [tariff, setTariff] = useState<WindowTariff>('general');
@@ -167,7 +181,7 @@ const WindowsCleaning = () => {
     priceRange: 'от 400 ₽',
     aggregateRating: { '@type': 'AggregateRating', ratingValue: '5.0', reviewCount: '41' },
     areaServed: ['Сочи', 'Адлер', 'Красная Поляна'],
-    openingHours: 'Mo-Su 08:00-20:00',
+    openingHours: 'Mo-Su 08:00-23:00',
   };
 
   return (
@@ -179,6 +193,17 @@ const WindowsCleaning = () => {
           content="Профессиональная мойка окон в Сочи: квартиры, дома, панорамное остекление, балконы, после ремонта. Без разводов, выезд в день обращения. Рейтинг 5,0 — 41 отзыв."
         />
         <link rel="canonical" href="https://www.blesk23.ru/moyka-okon-sochi" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: faqExtra.map((f) => ({
+              '@type': 'Question',
+              name: f.q,
+              acceptedAnswer: { '@type': 'Answer', text: f.a },
+            })),
+          })}
+        </script>
         <script type="application/ld+json">{JSON.stringify(localBusinessJsonLd)}</script>
       </Helmet>
 
@@ -449,7 +474,7 @@ const WindowsCleaning = () => {
               Выезжаем по всему Большому Сочи
             </h2>
             <p className="text-muted-foreground mb-6">
-              Работаем ежедневно 8:00–20:00. Выезд в день обращения.
+              Работаем ежедневно 8:00–23:00. Выезд в день обращения.
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               {districts.map((d) => (
@@ -532,6 +557,31 @@ const WindowsCleaning = () => {
               </p>
             </article>
           </details>
+        </section>
+
+        {/* FAQ */}
+        <section className="py-16 md:py-24">
+          <div className="container mx-auto px-4 max-w-3xl">
+            <h2 className="font-heading text-3xl md:text-4xl font-bold text-center mb-10">
+              Частые вопросы
+            </h2>
+            <Accordion type="single" collapsible className="space-y-3">
+              {faqExtra.map((f, i) => (
+                <AccordionItem
+                  key={i}
+                  value={`faq-${i}`}
+                  className="rounded-2xl border border-[#DDEBE8] bg-white px-5"
+                >
+                  <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                    {f.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground leading-relaxed">
+                    {f.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
         </section>
 
         {/* Related */}

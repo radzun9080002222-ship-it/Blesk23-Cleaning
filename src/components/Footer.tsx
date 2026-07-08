@@ -1,6 +1,6 @@
 import { Sparkles, MapPin, Phone, Mail, MessageCircle, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import maxIcon from '@/assets/max-icon.jpg';
+import maxIcon from '@/assets/max-icon.webp';
 import { reachGoal } from '@/lib/metrika';
 
 const Footer = () => {

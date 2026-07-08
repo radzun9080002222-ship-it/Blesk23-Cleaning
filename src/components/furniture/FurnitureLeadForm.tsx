@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CheckCircle2, MessageCircle, Send } from 'lucide-react';
 import { reachGoal } from '@/lib/metrika';
-import maxIcon from '@/assets/max-icon.jpg';
+import maxIcon from '@/assets/max-icon.webp';
 
 const GOOGLE_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSfb28U4RIVI2K9h6cyjSbwxRqMVMUyUeuKuQADfPWonb71ypQ/formResponse';

@@ -33,22 +33,22 @@ import WindowsCalculator, {
 } from '@/components/windows/WindowsCalculator';
 import WindowsLeadForm from '@/components/windows/WindowsLeadForm';
 import { reachGoal } from '@/lib/metrika';
-import maxIcon from '@/assets/max-icon.jpg';
+import maxIcon from '@/assets/max-icon.webp';
 
-const heroImg = { url: '/images/okna/hero.jpg' };
+const heroImg = { url: '/images/okna/hero.webp' };
 const heroVideo = { url: '/images/okna/video-hero.mp4' };
-const panoramaImg = { url: '/images/okna/panorama.jpg' };
-const process1 = { url: '/images/okna/process-1.jpg' };
+const panoramaImg = { url: '/images/okna/panorama.webp' };
+const process1 = { url: '/images/okna/process-1.webp' };
 
 const beforeAfter = [
   {
-    before: '/images/okna/do-posle-okno2-do.jpg',
-    after: '/images/okna/do-posle-okno2-posle.jpg',
+    before: '/images/okna/do-posle-okno2-do.webp',
+    after: '/images/okna/do-posle-okno2-posle.webp',
     caption: 'Окна после ремонта — сняли плёнку и пыль',
   },
   {
-    before: '/images/okna/do-posle-okno3-do.jpg',
-    after: '/images/okna/do-posle-okno3-posle.jpg',
+    before: '/images/okna/do-posle-okno3-do.webp',
+    after: '/images/okna/do-posle-okno3-posle.webp',
     caption: 'Окно и подоконник — после стройки',
   },
 ];
@@ -225,6 +225,7 @@ const WindowsCleaning = () => {
               alt="Мастер «Империи Блеска» моет окно в Сочи"
               className="absolute inset-0 w-full h-full object-cover"
               loading="eager"
+              decoding="async"
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-[#003F3B]/90 via-[#003F3B]/70 to-[#003F3B]/30" />
@@ -370,6 +371,7 @@ const WindowsCleaning = () => {
                 src={panoramaImg.url}
                 alt="Панорамное остекление в пол — мойка окон в Сочи"
                 loading="lazy"
+                decoding="async"
                 className="w-full aspect-[4/3] object-cover rounded-3xl border border-[#DDEBE8]"
               />
             </div>
@@ -394,6 +396,7 @@ const WindowsCleaning = () => {
                 src={process1.url}
                 alt="Процесс мойки окна — рука мастера в перчатке на створке"
                 loading="lazy"
+                decoding="async"
                 className="w-full aspect-[4/3] object-cover rounded-3xl border border-[#DDEBE8]"
               />
               <div className="grid sm:grid-cols-2 gap-4">

@@ -32,18 +32,18 @@ import FurnitureCalculator, {
 } from '@/components/furniture/FurnitureCalculator';
 import FurnitureLeadForm from '@/components/furniture/FurnitureLeadForm';
 import { reachGoal } from '@/lib/metrika';
-import maxIcon from '@/assets/max-icon.jpg';
+import maxIcon from '@/assets/max-icon.webp';
 
-const heroImg = { url: '/images/himchistka/hero.jpg' };
+const heroImg = { url: '/images/himchistka/hero.webp' };
 const heroVideo = { url: '/images/himchistka/video-hero.mp4' };
-const komandaImg = { url: '/images/himchistka/komanda.jpg' };
-const oborudovanieImg = { url: '/images/himchistka/oborudovanie.jpg' };
-const doImg = { url: '/images/himchistka/do-posle-divan-do.jpg' };
-const posleImg = { url: '/images/himchistka/do-posle-divan-posle-alt.jpg' };
-const process1 = { url: '/images/himchistka/process-1.jpg' };
-const process2 = { url: '/images/himchistka/process-2.jpg' };
-const process3 = { url: '/images/himchistka/process-3.jpg' };
-const result1 = { url: '/images/himchistka/result-1.jpg' };
+const komandaImg = { url: '/images/himchistka/komanda.webp' };
+const oborudovanieImg = { url: '/images/himchistka/oborudovanie.webp' };
+const doImg = { url: '/images/himchistka/do-posle-divan-do.webp' };
+const posleImg = { url: '/images/himchistka/do-posle-divan-posle-alt.webp' };
+const process1 = { url: '/images/himchistka/process-1.webp' };
+const process2 = { url: '/images/himchistka/process-2.webp' };
+const process3 = { url: '/images/himchistka/process-3.webp' };
+const result1 = { url: '/images/himchistka/result-1.webp' };
 
 const USE_HERO_VIDEO = false; // переключить в true когда будет HD-версия
 
@@ -262,6 +262,7 @@ const FurnitureCleaning = () => {
               alt="Мастер «Империи Блеска» с экстрактором Karcher чистит диван в Сочи"
               className="absolute inset-0 w-full h-full object-cover"
               loading="eager"
+              decoding="async"
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-[#003F3B]/90 via-[#003F3B]/70 to-[#003F3B]/30" />
@@ -463,6 +464,7 @@ const FurnitureCleaning = () => {
                   src={img.url}
                   alt={`Процесс химчистки мебели — шаг ${i + 1}`}
                   loading="lazy"
+                  decoding="async"
                   className="w-full aspect-[4/5] object-cover rounded-2xl border border-[#DDEBE8]"
                 />
               ))}
@@ -505,12 +507,14 @@ const FurnitureCleaning = () => {
                 src={komandaImg.url}
                 alt="Мастер «Империи Блеска» с экстрактором Karcher"
                 loading="lazy"
+                decoding="async"
                 className="w-full h-full max-h-[420px] object-cover rounded-2xl border border-[#DDEBE8]"
               />
               <img
                 src={oborudovanieImg.url}
                 alt="Профессиональное оборудование Karcher для химчистки мебели"
                 loading="lazy"
+                decoding="async"
                 className="w-full h-full max-h-[420px] object-cover rounded-2xl border border-[#DDEBE8]"
               />
             </div>
@@ -542,6 +546,7 @@ const FurnitureCleaning = () => {
                 src={result1.url}
                 alt="Чистый диван после химчистки — без разводов и запаха"
                 loading="lazy"
+                decoding="async"
                 className="w-full aspect-[4/5] md:aspect-[4/5] object-cover rounded-3xl border border-[#DDEBE8]"
               />
               <div>

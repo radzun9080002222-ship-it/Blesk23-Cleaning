@@ -1,7 +1,7 @@
-import bathroomImage from '@/assets/bathroom-cleaning.jpeg';
-import kitchenImage from '@/assets/kitchen-cleaning.jpeg';
-import windowImage from '@/assets/window-cleaning.jpeg';
-import steamImage from '@/assets/steam-cleaning.jpeg';
+import bathroomImage from '@/assets/bathroom-cleaning.webp';
+import kitchenImage from '@/assets/kitchen-cleaning.webp';
+import windowImage from '@/assets/window-cleaning.webp';
+import steamImage from '@/assets/steam-cleaning.webp';
 
 const Gallery = () => {
   const images = [
@@ -41,6 +41,8 @@ const Gallery = () => {
               <img
                 src={image.src}
                 alt={image.alt}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-72 object-cover group-hover:scale-110 transition-transform duration-500"
               />
               {/* Overlay */}

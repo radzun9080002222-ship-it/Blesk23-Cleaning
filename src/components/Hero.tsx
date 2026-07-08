@@ -1,6 +1,6 @@
 import { ArrowRight, Star, Shield, Clock, Phone, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import heroImage from '@/assets/steam-cleaning.jpeg';
+import heroImage from '@/assets/steam-cleaning.webp';
 import { reachGoal } from '@/lib/metrika';
 
 const Hero = () => {
@@ -69,6 +69,8 @@ const Hero = () => {
               <img
                 src={heroImage}
                 alt="Профессиональная уборка - Империя Блеска"
+                loading="eager"
+                decoding="async"
                 className="w-full h-[500px] object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />

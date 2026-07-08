@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { MapPin, Phone, Mail, Clock, Send, MessageCircle } from "lucide-react";
-import maxIcon from "@/assets/max-icon.jpg";
+import maxIcon from "@/assets/max-icon.webp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

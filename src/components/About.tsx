@@ -1,7 +1,7 @@
 import { CheckCircle2, Users, Award, Wrench, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import brigadierImage from '@/assets/brigadier.jpeg';
-import windowImage from '@/assets/window-cleaning.jpeg';
+import brigadierImage from '@/assets/brigadier.webp';
+import windowImage from '@/assets/window-cleaning.webp';
 
 const About = () => {
   const advantages = [
@@ -47,6 +47,8 @@ const About = () => {
               <img 
                 src={brigadierImage} 
                 alt="Бригадир Империя Блеска" 
+                loading="lazy"
+                decoding="async"
                 className="w-full h-[400px] object-cover"
               />
             </div>
@@ -55,6 +57,8 @@ const About = () => {
               <img 
                 src={windowImage} 
                 alt="Мытье окон" 
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
               />
             </div>

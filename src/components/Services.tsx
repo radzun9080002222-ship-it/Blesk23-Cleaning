@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
-import serviceApartments from '@/assets/service-apartments.jpg';
-import serviceOffices from '@/assets/service-offices.jpg';
-const serviceWindows = '/images/okna/hero.jpg';
-import serviceDrycleaning from '@/assets/service-drycleaning.jpg';
-import serviceRenovation from '@/assets/service-renovation.jpg';
-import serviceExtra from '@/assets/service-extra.jpg';
+import serviceApartments from '@/assets/service-apartments.webp';
+import serviceOffices from '@/assets/service-offices.webp';
+const serviceWindows = '/images/okna/hero.webp';
+import serviceDrycleaning from '@/assets/service-drycleaning.webp';
+import serviceRenovation from '@/assets/service-renovation.webp';
+import serviceExtra from '@/assets/service-extra.webp';
 
 const services = [
   {
@@ -81,6 +81,7 @@ const Services = () => {
                   alt={service.title}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   loading="lazy"
+                  decoding="async"
                 />
 
                 {/* Dark overlay */}

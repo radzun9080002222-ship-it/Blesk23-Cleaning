@@ -15,9 +15,9 @@ import RepairCalculator from '@/components/repair/RepairCalculator';
 import RepairLeadForm from '@/components/repair/RepairLeadForm';
 import StickyMobileCTA from '@/components/repair/StickyMobileCTA';
 import { reachGoal } from '@/lib/metrika';
-import maxIcon from '@/assets/max-icon.jpg';
+import maxIcon from '@/assets/max-icon.webp';
 
-const hero = '/images/repair/hero_gostinaya.jpg';
+const hero = '/images/repair/hero_gostinaya.webp';
 const maxUrl =
   'https://max.ru/u/f9LHodD0cOJtMUjlrXWI6y94fo8f8qPlmQdiA50RMF8i1MsNISiZPv1iKWk';
 
@@ -27,20 +27,20 @@ const tgUrl = 'https://t.me/+79002885255';
 const reviewsUrl = 'https://yandex.ru/maps/org/21130859655/reviews/';
 
 const beforeAfterItems = [
-  { before: '/images/repair/02_gostinaya_do.jpg', after: '/images/repair/02_gostinaya_posle.jpg', caption: 'Гостиная, ЖК в Сочи' },
-  { before: '/images/repair/03_kran_do.jpg', after: '/images/repair/03_kran_posle.jpg', caption: 'Сантехника: штукатурка → блеск' },
-  { before: '/images/repair/04_podokonnik_do.jpg', after: '/images/repair/04_podokonnik_posle.jpg', caption: 'Подоконник: плёнка и пыль' },
-  { before: '/images/repair/05_okna_do.jpg', after: '/images/repair/05_okna_posle.jpg', caption: 'Окна: строительная пыль' },
-  { before: '/images/repair/06_spalnya_do.jpg', after: '/images/repair/06_spalnya_posle.jpg', caption: 'Спальня после ремонта' },
-  { before: '/images/repair/07_kuhnya_do.jpg', after: '/images/repair/07_kuhnya_posle.jpg', caption: 'Кухня, ЖК в Сочи' },
+  { before: '/images/repair/02_gostinaya_do.webp', after: '/images/repair/02_gostinaya_posle.webp', caption: 'Гостиная, ЖК в Сочи' },
+  { before: '/images/repair/03_kran_do.webp', after: '/images/repair/03_kran_posle.webp', caption: 'Сантехника: штукатурка → блеск' },
+  { before: '/images/repair/04_podokonnik_do.webp', after: '/images/repair/04_podokonnik_posle.webp', caption: 'Подоконник: плёнка и пыль' },
+  { before: '/images/repair/05_okna_do.webp', after: '/images/repair/05_okna_posle.webp', caption: 'Окна: строительная пыль' },
+  { before: '/images/repair/06_spalnya_do.webp', after: '/images/repair/06_spalnya_posle.webp', caption: 'Спальня после ремонта' },
+  { before: '/images/repair/07_kuhnya_do.webp', after: '/images/repair/07_kuhnya_posle.webp', caption: 'Кухня, ЖК в Сочи' },
 ];
 
 const galleryImages = [
-  '/images/repair/gostinaya2.jpg',
-  '/images/repair/vannaya.jpg',
-  '/images/repair/kuhnya.jpg',
-  '/images/repair/spalnya.jpg',
-  '/images/repair/komnata_dom.jpg',
+  '/images/repair/gostinaya2.webp',
+  '/images/repair/vannaya.webp',
+  '/images/repair/kuhnya.webp',
+  '/images/repair/spalnya.webp',
+  '/images/repair/komnata_dom.webp',
 ];
 
 const whatIncluded = [
@@ -117,7 +117,7 @@ const AfterRepairCleaning = () => {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
     name: 'Империя Блеска',
-    image: 'https://www.blesk23.ru/images/repair/hero_gostinaya.jpg',
+    image: 'https://www.blesk23.ru/images/repair/hero_gostinaya.webp',
     telephone: '+79002885255',
     email: 'imperiableska2025@gmail.com',
     address: {
@@ -155,6 +155,7 @@ const AfterRepairCleaning = () => {
             alt="Чистая гостиная после ремонта в Сочи"
             className="absolute inset-0 w-full h-full object-cover"
             loading="eager"
+            decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#003F3B]/90 via-[#003F3B]/70 to-[#003F3B]/20" />
           <div className="relative container mx-auto px-4 pt-28 md:pt-36 pb-20 md:pb-28">
@@ -425,11 +426,12 @@ const AfterRepairCleaning = () => {
               {galleryImages.map((g, i) => (
                 <img
                   key={i}
-                  src={g}
-                  alt="Чистый объект после уборки"
-                  loading="lazy"
-                  className="w-full aspect-square object-cover rounded-2xl border border-[#DDEBE8]"
-                />
+                src={g}
+                alt="Чистый объект после уборки"
+                loading="lazy"
+                decoding="async"
+                className="w-full aspect-square object-cover rounded-2xl border border-[#DDEBE8]"
+              />
               ))}
             </div>
           </div>

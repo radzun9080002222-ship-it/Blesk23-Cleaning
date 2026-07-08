@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Home, Building2, Briefcase, MessageCircle, Send } from 'lucide-react';
 import { reachGoal } from '@/lib/metrika';
-import maxIcon from '@/assets/max-icon.jpg';
+import maxIcon from '@/assets/max-icon.webp';
 
 const MIN_PRICE = 6000;
 

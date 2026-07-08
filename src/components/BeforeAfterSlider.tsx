@@ -46,6 +46,7 @@ const BeforeAfterSlider = ({ before, after, caption }: Props) => {
           src={after}
           alt={caption ? `${caption} — после` : 'после'}
           loading="lazy"
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           draggable={false}
         />
@@ -53,6 +54,7 @@ const BeforeAfterSlider = ({ before, after, caption }: Props) => {
           src={before}
           alt={caption ? `${caption} — до` : 'до'}
           loading="lazy"
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
           draggable={false}

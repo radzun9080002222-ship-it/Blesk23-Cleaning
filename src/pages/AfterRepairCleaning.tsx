@@ -13,7 +13,6 @@ import Footer from '@/components/Footer';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
 import RepairCalculator from '@/components/repair/RepairCalculator';
 import RepairLeadForm from '@/components/repair/RepairLeadForm';
-import StickyMobileCTA from '@/components/repair/StickyMobileCTA';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
 
@@ -606,7 +605,6 @@ const AfterRepairCleaning = () => {
       </main>
 
       <Footer />
-      <StickyMobileCTA />
     </>
   );
 };

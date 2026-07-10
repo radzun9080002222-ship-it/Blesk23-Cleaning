@@ -1,5 +1,4 @@
-import { Phone } from 'lucide-react';
-import maxIcon from '@/assets/max-icon.webp';
+import { MessageCircle, Phone } from 'lucide-react';
 import { reachGoal } from '@/lib/metrika';
 import { useLocation } from 'react-router-dom';
 
@@ -12,9 +11,6 @@ const HIDDEN_ROUTES = [
   '/privacy',
   '/consent',
   '/requisites',
-  '/uborka-posle-remonta-sochi',
-  '/himchistka-mebeli-sochi',
-  '/moyka-okon-sochi',
 ];
 
 const FloatingContact = () => {
@@ -22,30 +18,30 @@ const FloatingContact = () => {
   if (HIDDEN_ROUTES.includes(pathname)) return null;
 
   return (
-  <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] md:hidden">
-    <div className="flex w-full max-w-[360px] items-center gap-2 rounded-full border border-white/10 bg-black/85 p-1.5 shadow-2xl shadow-black/30 backdrop-blur-md sm:w-auto sm:max-w-none">
-      <a
-        href={MAX_HREF}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Написать в MAX"
-        onClick={() => reachGoal('messenger_click')}
-        className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#16b8ff] via-[#2d8cff] to-[#6b45ff] px-6 text-sm font-bold text-white shadow-lg shadow-[#2d8cff]/25 transition-transform hover:scale-[1.02] sm:w-32 sm:flex-none"
-      >
-        <img src={maxIcon} alt="" className="h-5 w-5" aria-hidden="true" />
-        <span>MAX</span>
-      </a>
-      <a
-        href={PHONE_HREF}
-        aria-label="Позвонить"
-        onClick={() => reachGoal('phone_click')}
-        className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full px-5 text-sm font-bold text-white transition-colors hover:bg-white/10 sm:w-36 sm:flex-none"
-      >
-        <Phone className="h-4 w-4" />
-        <span>Позвонить</span>
-      </a>
+    <div className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)]">
+      <div className="pointer-events-auto flex h-[60px] w-full max-w-[286px] items-center rounded-full border border-border/80 bg-white/95 p-1.5 shadow-[0_12px_32px_rgba(15,23,42,0.14)] backdrop-blur-md">
+        <a
+          href={MAX_HREF}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Написать в MAX"
+          onClick={() => reachGoal('messenger_click')}
+          className="flex h-12 w-[108px] shrink-0 items-center justify-center gap-2 rounded-full bg-[#168B7A] px-4 text-[15px] font-bold text-white transition-all hover:bg-[#117567] hover:shadow-md active:scale-[0.98]"
+        >
+          <MessageCircle className="h-4 w-4 fill-current" aria-hidden="true" />
+          <span>MAX</span>
+        </a>
+        <a
+          href={PHONE_HREF}
+          aria-label="Позвонить"
+          onClick={() => reachGoal('phone_click')}
+          className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted active:scale-[0.98]"
+        >
+          <Phone className="h-4 w-4 fill-current" aria-hidden="true" />
+          <span>Позвонить</span>
+        </a>
+      </div>
     </div>
-  </div>
   );
 };
 

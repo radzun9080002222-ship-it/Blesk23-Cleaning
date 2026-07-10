@@ -25,7 +25,6 @@ import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
-import StickyMobileCTA from '@/components/repair/StickyMobileCTA';
 import WindowsCalculator, {
   WINDOW_ITEMS,
   WindowTariff,
@@ -616,7 +615,6 @@ const WindowsCleaning = () => {
       </main>
 
       <Footer />
-      <StickyMobileCTA />
     </>
   );
 };

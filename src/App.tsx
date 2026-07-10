@@ -19,6 +19,8 @@ const OfficeCleaning = lazy(() => import("./pages/OfficeCleaning"));
 const WindowsCleaning = lazy(() => import("./pages/WindowsCleaning"));
 const InternalCalc = lazy(() => import("./pages/InternalCalc"));
 const Privacy = lazy(() => import("./pages/Privacy"));
+const Consent = lazy(() => import("./pages/Consent"));
+const Requisites = lazy(() => import("./pages/Requisites"));
 
 const queryClient = new QueryClient();
 
@@ -41,6 +43,8 @@ const App = () => (
 <Route path="/moyka-okon-sochi" element={<WindowsCleaning />} />
 
 <Route path="/privacy" element={<Privacy />} />
+<Route path="/consent" element={<Consent />} />
+<Route path="/requisites" element={<Requisites />} />
 
 {/* internal, noindex */}
 <Route path="/calc" element={<InternalCalc />} />

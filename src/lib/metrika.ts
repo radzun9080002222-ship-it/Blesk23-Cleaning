@@ -11,7 +11,12 @@ declare global {
 
 const METRIKA_ID = 107216997;
 
-export type MetrikaGoal = "phone_click" | "messenger_click" | "form_submit";
+export type MetrikaGoal =
+  | "phone_click"
+  | "messenger_click"
+  | "form_submit"
+  | "pricing_cta_click"
+  | "contact_scroll";
 
 export const reachGoal = (goal: MetrikaGoal) => {
   if (typeof window !== "undefined" && typeof window.ym === "function") {

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send, TrendingUp, Settings2, Settings, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 /* ====================== AMO CRM ====================== */
 
@@ -82,37 +83,30 @@ export const PRICING_DEFAULTS = {
 
 export type PricingConfig = typeof PRICING_DEFAULTS;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
 // Глубокое слияние data из Supabase поверх дефолтов (на случай новых полей).
-const mergePricing = (saved: any): PricingConfig => {
-  if (!saved || typeof saved !== 'object') return PRICING_DEFAULTS;
-  const out: any = JSON.parse(JSON.stringify(PRICING_DEFAULTS));
-  const deep = (dst: any, src: any) => {
-    if (!src || typeof src !== 'object') return;
-    for (const k of Object.keys(src)) {
-      const sv = src[k];
-      if (Array.isArray(sv)) {
-        // массивы (rates.*, wardrobe) — мерджим по индексу
-        if (Array.isArray(dst[k])) {
-          dst[k] = dst[k].map((item: any, i: number) => {
-            const s = sv[i];
-            if (s == null) return item;
-            if (typeof item === 'object' && item && typeof s === 'object') return { ...item, ...s };
-            return s;
-          });
-        } else {
-          dst[k] = sv;
-        }
-      } else if (sv && typeof sv === 'object') {
-        if (!dst[k] || typeof dst[k] !== 'object') dst[k] = {};
-        deep(dst[k], sv);
-      } else if (typeof sv === 'number') {
-        dst[k] = sv;
-      }
-    }
-  };
-  deep(out, saved);
-  return out as PricingConfig;
+const mergePricingValue = (fallback: unknown, saved: unknown): unknown => {
+  if (Array.isArray(fallback) && Array.isArray(saved)) {
+    return fallback.map((item, index) =>
+      saved[index] == null ? item : mergePricingValue(item, saved[index])
+    );
+  }
+
+  if (isRecord(fallback) && isRecord(saved)) {
+    const result: Record<string, unknown> = { ...fallback };
+    Object.entries(saved).forEach(([key, value]) => {
+      if (key in fallback) result[key] = mergePricingValue(fallback[key], value);
+    });
+    return result;
+  }
+
+  return typeof saved === 'number' ? saved : fallback;
 };
+
+const mergePricing = (saved: unknown): PricingConfig =>
+  mergePricingValue(PRICING_DEFAULTS, saved) as PricingConfig;
 
 const rateForPricing = (pricing: PricingConfig, type: CleaningType, area: number): number => {
   if (type === 'all_inclusive') return pricing.rates.allInclusive;
@@ -286,7 +280,7 @@ const clampDirt = (v: number) => Math.min(3, Math.max(1, v));
 
 /* ====================== СТРАНИЦА ====================== */
 
-const InternalCalc = () => {
+const InternalCalcContent = () => {
   // ===== ОБЩИЕ ЦЕНЫ (Supabase) =====
   const [pricing, setPricing] = useState<PricingConfig>(PRICING_DEFAULTS);
   const [showPricingPanel, setShowPricingPanel] = useState(false);
@@ -317,7 +311,7 @@ const InternalCalc = () => {
     try {
       const { error } = await supabase
         .from('pricing_config')
-        .upsert({ id: 'default', data: pricing as any, updated_at: new Date().toISOString() });
+        .upsert({ id: 'default', data: pricing as unknown as Json, updated_at: new Date().toISOString() });
       if (error) throw error;
       setPricingSaveStatus('ok');
       setTimeout(() => setPricingSaveStatus('idle'), 2500);
@@ -386,7 +380,9 @@ const InternalCalc = () => {
     setEconConf(next);
     try {
       localStorage.setItem(ECON_LS_KEY, JSON.stringify(next));
-    } catch {}
+    } catch {
+      // localStorage может быть запрещён настройками браузера.
+    }
   };
 
   const resetEconConf = () => {
@@ -394,7 +390,9 @@ const InternalCalc = () => {
     setEconConf(base);
     try {
       localStorage.removeItem(ECON_LS_KEY);
-    } catch {}
+    } catch {
+      // localStorage может быть запрещён настройками браузера.
+    }
   };
 
   const isRepair = type === 'repair';
@@ -565,7 +563,9 @@ const InternalCalc = () => {
       await navigator.clipboard.writeText(estimateText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    } catch {
+      // В старых браузерах менеджер сможет выделить и скопировать текст вручную.
+    }
   };
 
   const amoReady = client.phone.replace(/\D/g, '').length >= 10 && calc.lines.length > 0;
@@ -1544,6 +1544,73 @@ const PricingPanel = ({ pricing, setPricing, onClose, onSave, onReset, saveStatu
         </div>
       </div>
     </div>
+  );
+};
+
+const CALC_PIN = '3715';
+const CALC_ACCESS_KEY = 'blesk23_calc_access';
+
+const InternalCalc = () => {
+  const [isUnlocked, setIsUnlocked] = useState(
+    () => typeof window !== 'undefined' && sessionStorage.getItem(CALC_ACCESS_KEY) === 'granted'
+  );
+  const [pin, setPin] = useState('');
+  const [pinError, setPinError] = useState(false);
+
+  if (isUnlocked) return <InternalCalcContent />;
+
+  const submitPin = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (pin !== CALC_PIN) {
+      setPinError(true);
+      setPin('');
+      return;
+    }
+
+    sessionStorage.setItem(CALC_ACCESS_KEY, 'granted');
+    setIsUnlocked(true);
+  };
+
+  return (
+    <>
+      <Helmet>
+        <title>Вход в калькулятор — Империя Блеска</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
+      <main className="flex min-h-screen items-center justify-center bg-[#F7FAF9] px-4 text-[#0D4D49]">
+        <form
+          onSubmit={submitPin}
+          className="w-full max-w-sm rounded-3xl border border-[#DDEBE8] bg-white p-7 text-center shadow-xl"
+        >
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+            <Calculator className="h-7 w-7 text-primary" />
+          </div>
+          <h1 className="font-heading text-2xl font-bold">Внутренний калькулятор</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Введите PIN-код менеджера</p>
+          <label htmlFor="calc-pin" className="sr-only">PIN-код</label>
+          <Input
+            id="calc-pin"
+            type="password"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="one-time-code"
+            autoFocus
+            maxLength={4}
+            value={pin}
+            onChange={(event) => {
+              setPin(event.target.value.replace(/\D/g, '').slice(0, 4));
+              setPinError(false);
+            }}
+            className="mt-6 h-12 text-center text-xl tracking-[0.5em]"
+            aria-invalid={pinError}
+          />
+          {pinError && <p className="mt-2 text-sm text-destructive">Неверный PIN-код</p>}
+          <Button type="submit" disabled={pin.length !== 4} className="mt-5 h-12 w-full rounded-xl">
+            Открыть калькулятор
+          </Button>
+        </form>
+      </main>
+    </>
   );
 };
 

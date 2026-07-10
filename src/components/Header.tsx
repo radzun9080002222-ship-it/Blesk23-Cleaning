@@ -30,6 +30,7 @@ const Header = () => {
     { name: 'Уборка офисов', href: '/uborka-oficov' },
     { name: 'Уборка после ремонта', href: '/uborka-posle-remonta-sochi' },
     { name: 'Химчистка мебели', href: '/himchistka-mebeli-sochi' },
+    { name: 'Мойка окон', href: '/moyka-okon-sochi' },
   ];
 
   return (
@@ -109,12 +110,16 @@ const Header = () => {
           <button
             className="lg:hidden p-2 rounded-xl hover:bg-muted transition-colors"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label={isMobileMenuOpen ? 'Закрыть меню' : 'Открыть меню'}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navigation"
           >
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
         <div
+          id="mobile-navigation"
           className={`lg:hidden overflow-hidden transition-all duration-300 ${
             isMobileMenuOpen ? 'max-h-[500px] pb-6' : 'max-h-0'
           }`}

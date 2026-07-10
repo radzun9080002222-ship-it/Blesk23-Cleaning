@@ -205,7 +205,8 @@ const FurnitureCleaning = () => {
     aggregateRating: {
       '@type': 'AggregateRating',
       ratingValue: '5.0',
-      reviewCount: '41',
+      ratingCount: '55',
+      reviewCount: '48',
     },
     areaServed: ['Сочи', 'Адлер', 'Красная Поляна'],
     openingHours: 'Mo-Su 08:00-23:00',
@@ -219,7 +220,7 @@ const FurnitureCleaning = () => {
         </title>
         <meta
           name="description"
-          content="Химчистка диванов, кресел, матрасов, ковров и штор в Сочи на дому. Экстракторный метод, сушка 3–6 часов. Безопасно для детей и животных. Рейтинг 5,0 — 41 отзыв."
+          content="Химчистка диванов, кресел, матрасов, ковров и штор в Сочи на дому. Экстракторный метод, сушка 3–6 часов. Безопасно для детей и животных. Рейтинг 5,0 — 48 отзывов."
         />
         <link
           rel="canonical"
@@ -290,7 +291,7 @@ const FurnitureCleaning = () => {
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Star className="w-3.5 h-3.5 fill-[#F5C518] text-[#F5C518]" />
-                  5,0 · 41 отзыв в Яндексе
+                  5,0 · 48 отзывов в Яндексе
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -596,7 +597,7 @@ const FurnitureCleaning = () => {
                 ))}
               </div>
               <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                5,0 · 41 отзыв в Яндексе
+                5,0 · 48 отзывов в Яндексе
               </h2>
             </div>
 

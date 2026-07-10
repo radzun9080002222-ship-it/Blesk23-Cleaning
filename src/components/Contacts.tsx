@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { reachGoal } from "@/lib/metrika";
+import ConsentCheckbox from "@/components/ConsentCheckbox";
+import { appendLeadTracking } from "@/lib/leadTracking";
 
 interface ContactsProps {
   prefilledMessage?: string;
@@ -34,7 +36,10 @@ async function sendToGoogleForm(payload: {
 }
 
 function normalizePhone(phone: string) {
-  return phone.replace(/[^\d+]/g, "");
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("8")) digits = `7${digits.slice(1)}`;
+  if (digits.length === 10) digits = `7${digits}`;
+  return digits.length === 11 && digits.startsWith("7") ? `+${digits}` : "";
 }
 
 const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
@@ -77,6 +82,7 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState(prefilledMessage);
+  const [consent, setConsent] = useState(false);
 
   const [isSending, setIsSending] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -92,9 +98,9 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
     const n = name.trim();
     const p = normalizePhone(phone.trim());
     const em = email.trim();
-    const msg = message.trim();
+    const msg = appendLeadTracking(message.trim());
 
-    if (!p) {
+    if (!p || !consent) {
       setStatus("error");
       return;
     }
@@ -117,6 +123,7 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
       setPhone("");
       setEmail("");
       setMessage(prefilledMessage || "");
+      setConsent(false);
     } catch (err) {
       console.error(err);
       setStatus("error");
@@ -236,8 +243,10 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
               <form className="space-y-5" onSubmit={handleSubmit}>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Имя</label>
+                    <label htmlFor="contact-name" className="text-sm font-medium">Имя</label>
                     <Input
+                      id="contact-name"
+                      name="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Как к вам обращаться?"
@@ -247,10 +256,12 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">
+                    <label htmlFor="contact-phone" className="text-sm font-medium">
                       Телефон <span className="text-destructive">*</span>
                     </label>
                     <Input
+                      id="contact-phone"
+                      name="phone"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       type="tel"
@@ -266,8 +277,10 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Email</label>
+                  <label htmlFor="contact-email" className="text-sm font-medium">Email</label>
                   <Input
+                    id="contact-email"
+                    name="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     type="email"
@@ -278,8 +291,10 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Сообщение</label>
+                  <label htmlFor="contact-message" className="text-sm font-medium">Сообщение</label>
                   <Textarea
+                    id="contact-message"
+                    name="message"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Расскажите о вашем помещении и пожеланиях..."
@@ -292,7 +307,7 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                   type="submit"
                   size="lg"
                   className="w-full rounded-full shadow-lg shadow-primary/25 hero-gradient"
-                  disabled={isSending}
+                  disabled={isSending || !consent}
                 >
                   {isSending
                     ? "Отправляем..."
@@ -313,12 +328,7 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                   </p>
                 )}
 
-                <p className="text-xs text-muted-foreground text-center">
-                  Нажимая кнопку, вы соглашаетесь с{" "}
-                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    политикой обработки персональных данных
-                  </a>
-                </p>
+                <ConsentCheckbox id="contact-consent" checked={consent} onChange={setConsent} />
               </form>
             </div>
           </div>

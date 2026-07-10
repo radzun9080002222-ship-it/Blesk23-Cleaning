@@ -127,7 +127,7 @@ const AfterRepairCleaning = () => {
       addressCountry: 'RU',
     },
     priceRange: 'от 280 ₽/м²',
-    aggregateRating: { '@type': 'AggregateRating', ratingValue: '5.0', reviewCount: '43' },
+    aggregateRating: { '@type': 'AggregateRating', ratingValue: '5.0', ratingCount: '55', reviewCount: '48' },
     areaServed: ['Сочи', 'Адлер', 'Красная Поляна'],
     openingHours: 'Mo-Su 08:00-23:00',
   };
@@ -138,7 +138,7 @@ const AfterRepairCleaning = () => {
         <title>Уборка после ремонта в Сочи — от 280 ₽/м² | Империя Блеска</title>
         <meta
           name="description"
-          content="Уборка после ремонта в Сочи от 280 ₽/м². Удалим строительную пыль, плёнку, краску и затирку за 1 день. Точная цена в WhatsApp за 2 минуты. Рейтинг 5.0 — 43 отзыва."
+          content="Уборка после ремонта в Сочи от 280 ₽/м². Удалим строительную пыль, плёнку, краску и затирку за 1 день. Точная цена в WhatsApp за 2 минуты. Рейтинг 5.0 — 48 отзывов."
         />
         <link rel="canonical" href="https://www.blesk23.ru/uborka-posle-remonta-sochi" />
         <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
@@ -178,7 +178,7 @@ const AfterRepairCleaning = () => {
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Star className="w-3.5 h-3.5 fill-[#F5C518] text-[#F5C518]" />
-                  Рейтинг 5.0 · 43 отзыва в Яндексе
+                  Рейтинг 5.0 · 48 отзывов в Яндексе
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -385,7 +385,7 @@ const AfterRepairCleaning = () => {
           <div className="container mx-auto px-4 max-w-6xl">
             <div className="text-center mb-10">
               <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                Рейтинг 5.0 — 43 отзыва в Яндексе
+                Рейтинг 5.0 — 48 отзывов в Яндексе
               </h2>
             </div>
 
@@ -569,7 +569,7 @@ const AfterRepairCleaning = () => {
             </p>
             <h3>Почему выбирают «Империю Блеска»</h3>
             <p>
-              Рейтинг компании 5.0 в Яндекс Картах — 43 отзыва реальных клиентов. Работаем
+              Рейтинг компании 5.0 в Яндекс Картах — 48 отзывов реальных клиентов. Работаем
               ежедневно с 8:00 до 23:00, выезд возможен в течение суток. Принимаем оплату
               наличными, картой и безналом, работаем с юридическими лицами по договору.
               Чтобы заказать послеремонтную уборку в Сочи — позвоните по номеру

@@ -1,13 +1,28 @@
 import { Phone } from 'lucide-react';
 import maxIcon from '@/assets/max-icon.webp';
 import { reachGoal } from '@/lib/metrika';
+import { useLocation } from 'react-router-dom';
 
 const PHONE_HREF = 'tel:+79002885255';
 const MAX_HREF =
   'https://max.ru/u/f9LHodD0cOJtMUjlrXWI6y94fo8f8qPlmQdiA50RMF8i1MsNISiZPv1iKWk';
 
-const FloatingContact = () => (
-  <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)]">
+const HIDDEN_ROUTES = [
+  '/calc',
+  '/privacy',
+  '/consent',
+  '/requisites',
+  '/uborka-posle-remonta-sochi',
+  '/himchistka-mebeli-sochi',
+  '/moyka-okon-sochi',
+];
+
+const FloatingContact = () => {
+  const { pathname } = useLocation();
+  if (HIDDEN_ROUTES.includes(pathname)) return null;
+
+  return (
+  <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] md:hidden">
     <div className="flex w-full max-w-[360px] items-center gap-2 rounded-full border border-white/10 bg-black/85 p-1.5 shadow-2xl shadow-black/30 backdrop-blur-md sm:w-auto sm:max-w-none">
       <a
         href={MAX_HREF}
@@ -31,6 +46,7 @@ const FloatingContact = () => (
       </a>
     </div>
   </div>
-);
+  );
+};
 
 export default FloatingContact;

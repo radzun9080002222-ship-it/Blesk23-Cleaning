@@ -179,7 +179,7 @@ const WindowsCleaning = () => {
     telephone: '+79002885255',
     address: { '@type': 'PostalAddress', addressLocality: 'Сочи', addressCountry: 'RU' },
     priceRange: 'от 400 ₽',
-    aggregateRating: { '@type': 'AggregateRating', ratingValue: '5.0', reviewCount: '41' },
+    aggregateRating: { '@type': 'AggregateRating', ratingValue: '5.0', ratingCount: '55', reviewCount: '48' },
     areaServed: ['Сочи', 'Адлер', 'Красная Поляна'],
     openingHours: 'Mo-Su 08:00-23:00',
   };
@@ -190,7 +190,7 @@ const WindowsCleaning = () => {
         <title>Мойка окон в Сочи — без разводов, от 400 ₽ | Империя Блеска</title>
         <meta
           name="description"
-          content="Профессиональная мойка окон в Сочи: квартиры, дома, панорамное остекление, балконы, после ремонта. Без разводов, выезд в день обращения. Рейтинг 5,0 — 41 отзыв."
+          content="Профессиональная мойка окон в Сочи: квартиры, дома, панорамное остекление, балконы, после ремонта. Без разводов, выезд в день обращения. Рейтинг 5,0 — 48 отзывов."
         />
         <link rel="canonical" href="https://www.blesk23.ru/moyka-okon-sochi" />
         <script type="application/ld+json">
@@ -246,7 +246,7 @@ const WindowsCleaning = () => {
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Star className="w-3.5 h-3.5 fill-[#F5C518] text-[#F5C518]" />
-                  5,0 · 41 отзыв
+                  5,0 · 48 отзывов
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -442,7 +442,7 @@ const WindowsCleaning = () => {
                 ))}
               </div>
               <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                5,0 · 41 отзыв в Яндексе
+                5,0 · 48 отзывов в Яндексе
               </h2>
             </div>
 

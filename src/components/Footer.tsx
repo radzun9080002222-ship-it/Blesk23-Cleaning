@@ -22,8 +22,8 @@ const Footer = () => {
 
   const legalLinks = [
     { name: 'Политика обработки персональных данных', href: '/privacy' },
-    { name: 'Договор оферты', href: '#' },
-    { name: 'Реквизиты', href: '#' },
+    { name: 'Согласие на обработку данных', href: '/consent' },
+    { name: 'Реквизиты', href: '/requisites' },
   ];
 
   return (
@@ -63,8 +63,11 @@ const Footer = () => {
               </a>
               <div className="flex items-center gap-3 text-sm text-background/70">
                 <MapPin className="w-4 h-4" />
-                г. Сочи, ул. Донская, 12
+                Адрес обслуживания: г. Сочи, ул. Донская, 12
               </div>
+              <p className="text-xs leading-relaxed text-background/50">
+                ООО «ИМПЕРИЯ БЛЕСКА» · ИНН 2367029343 · ОГРН 1232300006608
+              </p>
             </div>
           </div>
 

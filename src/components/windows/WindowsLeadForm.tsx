@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input';
 import { CheckCircle2, MessageCircle, Send } from 'lucide-react';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
+import ConsentCheckbox from '@/components/ConsentCheckbox';
+import { appendLeadTracking } from '@/lib/leadTracking';
 
 const GOOGLE_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSfb28U4RIVI2K9h6cyjSbwxRqMVMUyUeuKuQADfPWonb71ypQ/formResponse';
@@ -55,9 +57,10 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+  const [consent, setConsent] = useState(false);
 
   const digits = phone.replace(/\D/g, '');
-  const valid = name.trim().length >= 2 && digits.length === 11;
+  const valid = name.trim().length >= 2 && digits.length === 11 && consent;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +73,7 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
         (tariffLabel ? `Тариф: ${tariffLabel}. ` : '') +
         (totalLabel ? `Расчёт: ${totalLabel}. ` : '') +
         (composition ? `Состав: ${composition}` : '');
-      await send({ name: name.trim(), phone: phone.trim(), comment });
+      await send({ name: name.trim(), phone: phone.trim(), comment: appendLeadTracking(comment) });
       reachGoal('form_submit');
       setSent(true);
     } catch {
@@ -107,6 +110,8 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
       </div>
 
       <Input
+        aria-label="Ваше имя"
+        name="name"
         placeholder="Ваше имя"
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -115,6 +120,8 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
         minLength={2}
       />
       <Input
+        aria-label="Телефон"
+        name="phone"
         type="tel"
         inputMode="tel"
         placeholder="+7 (___) ___-__-__"
@@ -139,9 +146,7 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
         </p>
       )}
 
-      <p className="text-[11px] text-muted-foreground text-center leading-snug">
-        Нажимая кнопку, вы соглашаетесь с обработкой персональных данных.
-      </p>
+      <ConsentCheckbox id="windows-consent" checked={consent} onChange={setConsent} />
 
       <div className="pt-2 border-t border-[#DDEBE8]">
         <p className="text-xs text-center text-muted-foreground mb-2">Или напишите сразу:</p>

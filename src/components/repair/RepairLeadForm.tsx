@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CheckCircle2 } from 'lucide-react';
 import { reachGoal } from '@/lib/metrika';
+import ConsentCheckbox from '@/components/ConsentCheckbox';
+import { appendLeadTracking } from '@/lib/leadTracking';
 
 const GOOGLE_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSfb28U4RIVI2K9h6cyjSbwxRqMVMUyUeuKuQADfPWonb71ypQ/formResponse';
@@ -14,7 +16,7 @@ async function sendToGoogleForm(payload: { name: string; phone: string }) {
   body.append('entry.557277616', '');
   body.append(
     'entry.1008164226',
-    'Заявка с лендинга «Уборка после ремонта» (/uborka-posle-remonta-sochi)'
+    appendLeadTracking('Заявка с лендинга «Уборка после ремонта» (/uborka-posle-remonta-sochi)')
   );
 
   await fetch(GOOGLE_FORM_URL, {
@@ -48,9 +50,10 @@ const RepairLeadForm = () => {
   const [sent, setSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(false);
+  const [consent, setConsent] = useState(false);
 
   const phoneDigits = phone.replace(/\D/g, '');
-  const valid = name.trim().length >= 2 && phoneDigits.length === 11;
+  const valid = name.trim().length >= 2 && phoneDigits.length === 11 && consent;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +100,8 @@ const RepairLeadForm = () => {
       </div>
 
       <Input
+        aria-label="Ваше имя"
+        name="name"
         placeholder="Ваше имя"
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -105,6 +110,8 @@ const RepairLeadForm = () => {
         minLength={2}
       />
       <Input
+        aria-label="Телефон"
+        name="phone"
         type="tel"
         inputMode="tel"
         placeholder="+7 (___) ___-__-__"
@@ -129,9 +136,7 @@ const RepairLeadForm = () => {
         </p>
       )}
 
-      <p className="text-[11px] text-muted-foreground text-center leading-snug">
-        Нажимая кнопку, вы соглашаетесь с обработкой персональных данных.
-      </p>
+      <ConsentCheckbox id="repair-consent" checked={consent} onChange={setConsent} />
     </form>
   );
 };

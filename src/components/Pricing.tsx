@@ -58,7 +58,7 @@ const Pricing = ({ onSelectPlan }: PricingProps) => {
   ];
 
   const handleSelect = (planName: string) => {
-    reachGoal('form_submit');
+    reachGoal('pricing_cta_click');
     if (onSelectPlan) {
       onSelectPlan(planName);
     }
@@ -163,7 +163,7 @@ const Pricing = ({ onSelectPlan }: PricingProps) => {
             <a
               href="#contacts"
               className="text-primary hover:underline font-medium"
-              onClick={() => reachGoal('form_submit')}
+              onClick={() => reachGoal('contact_scroll')}
             >
               Свяжитесь с нами
             </a>

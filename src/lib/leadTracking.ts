@@ -1,3 +1,5 @@
+import { queueGoogleLead } from '@/lib/googleForms';
+
 const TRACKING_KEYS = [
   'utm_source',
   'utm_medium',
@@ -77,4 +79,19 @@ export const appendLeadTracking = (message: string) => {
 
   if (details.length === 0) return message;
   return `${message.trim()}\n\nАтрибуция:\n${details.join('\n')}`.trim();
+};
+
+export const queuePhoneClickAttribution = (placement?: string) => {
+  const message = appendLeadTracking(
+    ['Событие сайта: phone_click', placement && `Размещение: ${placement}`]
+      .filter(Boolean)
+      .join('\n')
+  );
+
+  const eventMessage = `${message}\nevent_kind: phone_click`;
+  return queueGoogleLead({
+    name: 'Системное событие',
+    phone: '+79002885255',
+    message: eventMessage,
+  });
 };

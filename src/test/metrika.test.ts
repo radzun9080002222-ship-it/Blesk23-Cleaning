@@ -6,6 +6,34 @@ describe('automatic Metrika goals', () => {
     document.body.innerHTML = '';
     delete window.ym;
     window.history.replaceState({}, '', '/');
+    vi.unstubAllGlobals();
+  });
+
+  it('records phone click attribution before opening the dialer', () => {
+    const ym = vi.fn();
+    const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(new Response()));
+    window.ym = ym;
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.replaceState({}, '', '/?utm_source=yandex&yclid=phone-123');
+    document.body.innerHTML = '<a href="tel:+79002885255" data-track-placement="hero">Call</a>';
+    const dispose = installAutomaticGoalTracking();
+
+    const link = document.querySelector('a');
+    link?.addEventListener('click', (event) => event.preventDefault());
+    link?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(ym).toHaveBeenCalledWith(
+      107216997,
+      'reachGoal',
+      'phone_click',
+      expect.objectContaining({ page: '/', placement: 'hero' })
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(String(request?.body)).toContain('entry.1008164226=');
+    expect(String(request?.body)).toContain('utm_source%3A+yandex');
+    expect(String(request?.body)).toContain('event_kind%3A+phone_click');
+    dispose();
   });
 
   it('separates WhatsApp clicks from the aggregate messenger goal', () => {

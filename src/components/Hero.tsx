@@ -62,7 +62,7 @@ const Hero = () => {
                 </a>
               </Button>
               <Button size="lg" variant="outline" className="rounded-full px-8 hover:-translate-y-0.5 transition-transform" asChild>
-                <a href="tel:+79002885255" data-track-placement="hero" onClick={() => reachGoal('phone_click', { placement: 'hero' })}>
+                <a href="tel:+79002885255" data-track-placement="hero">
                   <Phone className="w-4 h-4 mr-2" />
                   Позвонить
                 </a>

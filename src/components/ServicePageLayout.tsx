@@ -109,7 +109,7 @@ const ServicePageLayout = ({
                   className="rounded-full px-8 shadow-xl shadow-primary/25 hero-gradient"
                   asChild
                 >
-                  <a href="tel:+79002885255" onClick={() => reachGoal('phone_click')}>
+                  <a href="tel:+79002885255">
                     <Phone className="w-4 h-4 mr-2" />
                     Заказать уборку
                   </a>
@@ -217,7 +217,7 @@ const ServicePageLayout = ({
                   className="rounded-full px-8 bg-primary-foreground text-primary hover:bg-primary-foreground/90 shadow-lg"
                   asChild
                 >
-                  <a href="tel:+79002885255" onClick={() => reachGoal('phone_click')}>
+                  <a href="tel:+79002885255">
                     <Phone className="w-4 h-4 mr-2" />
                     +7 900 288-52-55
                   </a>

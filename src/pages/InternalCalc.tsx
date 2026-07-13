@@ -5,45 +5,27 @@ import { Input } from '@/components/ui/input';
 import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send, TrendingUp, Settings2, Settings, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
+import { submitGoogleLead } from '@/lib/googleForms';
 
-/* ====================== AMO CRM ====================== */
-
-const AMO_FORM = {
-  url: 'https://forms.amocrm.ru/queue/add',
-  id: '1721178',
-  hash: 'c3be832a2e589205570c43f4bcb9abe1',
-  nameField: 'fields[name_1]',
-  phoneField: 'fields[1159022_1][1392964]',
-  leadNameField: 'fields[name_2]',
-  priceField: 'fields[price_2]',
-  noteField: 'fields[note_2]',
-};
-
-async function sendToAmo(payload: {
+async function sendCalcToLeadPipeline(payload: {
   contactName: string;
   phone: string;
   leadName: string;
   price: number;
   note: string;
 }) {
-  const fd = new FormData();
-  fd.append('form_id', AMO_FORM.id);
-  fd.append('hash', AMO_FORM.hash);
-  fd.append(
-    'user_origin',
-    JSON.stringify({
-      datetime: new Date().toString(),
-      timezone: 'Europe/Moscow',
-      referer: '/calc',
-    })
-  );
-  fd.append(AMO_FORM.nameField, payload.contactName);
-  fd.append(AMO_FORM.phoneField, payload.phone);
-  fd.append(AMO_FORM.leadNameField, payload.leadName);
-  fd.append(AMO_FORM.priceField, String(payload.price));
-  fd.append(AMO_FORM.noteField, payload.note);
+  const technical = [
+    'event_kind: internal_calc',
+    `calc_price: ${payload.price}`,
+    `calc_lead_name: ${payload.leadName}`,
+    `calc_created_at: ${new Date().toISOString()}`,
+  ].join('\n');
 
-  await fetch(AMO_FORM.url, { method: 'POST', mode: 'no-cors', body: fd });
+  await submitGoogleLead({
+    name: payload.contactName,
+    phone: payload.phone,
+    message: `${payload.note}\n\nАтрибуция:\n${technical}`,
+  });
 }
 
 /* ====================== ПРАЙС ====================== */
@@ -575,7 +557,7 @@ const InternalCalcContent = () => {
     try {
       setAmoStatus('sending');
       const dt = [client.date, client.time].filter(Boolean).join(' ');
-      await sendToAmo({
+      await sendCalcToLeadPipeline({
         contactName: client.name || 'Без имени',
         phone: client.phone,
         leadName: `Калькулятор: ${cleaningLabels[type]}, ${area} м²${dt ? ` на ${dt}` : ''}`,
@@ -1276,7 +1258,7 @@ const InternalCalcContent = () => {
                   {amoStatus === 'sending'
                     ? 'Отправляем...'
                     : amoStatus === 'ok'
-                    ? 'Сделка создана в amoCRM!'
+                    ? 'Расчёт отправлен в amoCRM!'
                     : amoStatus === 'err'
                     ? 'Ошибка — попробуй ещё раз'
                     : 'Отправить в amoCRM'}

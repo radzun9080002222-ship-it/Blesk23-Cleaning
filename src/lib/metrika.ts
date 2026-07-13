@@ -1,3 +1,5 @@
+import { queuePhoneClickAttribution } from '@/lib/leadTracking';
+
 declare global {
   interface Window {
     ym?: (...args: unknown[]) => void;
@@ -50,7 +52,10 @@ export const installAutomaticGoalTracking = () => {
     const href = link.href;
     const details = linkDetails(link);
 
-    if (href.includes('wa.me/')) reachGoal('whatsapp_click', details);
+    if (href.startsWith('tel:')) {
+      reachGoal('phone_click', details);
+      queuePhoneClickAttribution(details.placement);
+    } else if (href.includes('wa.me/')) reachGoal('whatsapp_click', details);
     else if (href.includes('t.me/')) reachGoal('telegram_click', details);
     else if (href.includes('max.ru/')) reachGoal('max_click', details);
     else if (href.startsWith('mailto:')) reachGoal('email_click', details);

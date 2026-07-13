@@ -8,6 +8,7 @@ const BLESK23_CONFIG = Object.freeze({
   workdayEndHour: 23,
   firstContactSlaMinutes: 5,
   mergeWindowDays: 30,
+  phoneClickAttributionMinutes: 15,
   sourceExternalId: 'blesk23_google_forms_2026',
   sourceName: 'Blesk23 — формы сайта',
   mergeableStageNames: [
@@ -109,12 +110,53 @@ function syncRow_(sheet, rowNumber, force) {
 
   try {
     const parsed = parseLeadMessage_(record['Сообщение'] || '');
+    if (parsed.attribution.event_kind === 'phone_click') {
+      const clickSource = inferSource_(parsed.attribution);
+      writeTechnicalValues_(
+        sheet,
+        rowNumber,
+        headers,
+        Object.assign({}, parsed.attribution, {
+          source: clickSource,
+          first_source: clickSource,
+        })
+      );
+      writeSyncResult_(sheet, rowNumber, headers, {
+        amo_sync_status: 'phone_click_logged',
+        amo_sync_error: '',
+        amo_synced_at: new Date().toISOString(),
+      });
+      return;
+    }
+
+    let phoneClickMatch = null;
+    if (parsed.attribution.event_kind === 'internal_calc') {
+      phoneClickMatch = findRecentPhoneClick_(sheet, rowNumber, headers);
+      if (phoneClickMatch && phoneClickMatch.rowNumber) {
+        parsed.attribution = Object.assign(
+          {},
+          phoneClickMatch.attribution,
+          parsed.attribution,
+          {
+            attribution_method: 'single_phone_click_time_window',
+            attribution_confidence: 'heuristic',
+            phone_click_at: phoneClickMatch.createdAt.toISOString(),
+          }
+        );
+      } else {
+        parsed.attribution.attribution_method = phoneClickMatch && phoneClickMatch.ambiguous
+          ? `ambiguous_phone_clicks_${phoneClickMatch.count}`
+          : 'no_recent_phone_click';
+        parsed.attribution.attribution_confidence = 'unattributed';
+      }
+    }
+
     const service = inferService_(parsed.message, parsed.attribution);
     const source = inferSource_(parsed.attribution);
     const technicalValues = Object.assign({}, parsed.attribution, {
       source,
       service,
-      first_source: parsed.attribution.utm_source || parsed.attribution.referrer || 'direct',
+      first_source: source,
     });
 
     writeTechnicalValues_(sheet, rowNumber, headers, technicalValues);
@@ -125,6 +167,9 @@ function syncRow_(sheet, rowNumber, force) {
       service,
       source,
       attribution: parsed.attribution,
+      price: parseMoney_(parsed.attribution.calc_price),
+      leadName: parsed.attribution.calc_lead_name || '',
+      eventKind: parsed.attribution.event_kind || '',
     };
     const contactData = {
       name: leadData.name,
@@ -133,6 +178,15 @@ function syncRow_(sheet, rowNumber, force) {
     };
     const upsert = createOrMergeLead_(leadData, contactData);
     const lead = upsert.lead;
+
+    if (phoneClickMatch && phoneClickMatch.rowNumber) {
+      writeSyncResult_(sheet, phoneClickMatch.rowNumber, headers, {
+        amo_lead_id: String(lead.id),
+        amo_sync_status: 'phone_click_claimed',
+        amo_sync_error: `claimed_by_row_${rowNumber}`,
+        amo_synced_at: new Date().toISOString(),
+      });
+    }
 
     createFirstContactTaskIfNeeded_(lead.id);
     addLeadNote_(lead.id, parsed.message, parsed.attribution);
@@ -177,12 +231,66 @@ function parseLeadMessage_(rawMessage) {
 
 function inferSource_(attribution) {
   const source = String(attribution.utm_source || '').toLowerCase();
+  if (source.includes('yandex_business') || attribution.ybaip) return 'Яндекс Бизнес';
   if (source.includes('yandex')) return 'Яндекс Директ';
   if (source.includes('google')) return 'Google';
-  if (source.includes('yandex_business') || attribution.ybaip) return 'Яндекс Бизнес';
   if (source) return `Сайт / ${attribution.utm_source}`;
   if (attribution.yclid) return 'Яндекс Директ';
+  if (attribution.event_kind === 'internal_calc') return 'Телефон / источник не определён';
   return 'Сайт / прямой переход';
+}
+
+function findRecentPhoneClick_(sheet, calcRowNumber, headers) {
+  const messageColumn = headers.indexOf('Сообщение');
+  const statusColumn = headers.indexOf('amo_sync_status');
+  const timestampColumn = Math.max(
+    headers.indexOf('Отметка времени'),
+    headers.indexOf('Timestamp'),
+    0
+  );
+  if (messageColumn === -1 || calcRowNumber <= 2) return null;
+
+  const calcTimestampValue = sheet.getRange(calcRowNumber, timestampColumn + 1).getValue();
+  const calcTimestamp = calcTimestampValue instanceof Date
+    ? calcTimestampValue
+    : new Date(calcTimestampValue || Date.now());
+  const cutoff = new Date(
+    calcTimestamp.getTime() - BLESK23_CONFIG.phoneClickAttributionMinutes * 60000
+  );
+  const firstRow = Math.max(2, calcRowNumber - 200);
+  const rows = sheet
+    .getRange(firstRow, 1, calcRowNumber - firstRow, headers.length)
+    .getValues();
+
+  const candidates = [];
+  rows.forEach((values, index) => {
+    const status = statusColumn === -1 ? '' : String(values[statusColumn] || '');
+    if (status && status !== 'phone_click_logged') return;
+
+    const parsed = parseLeadMessage_(String(values[messageColumn] || ''));
+    if (parsed.attribution.event_kind !== 'phone_click') return;
+
+    const rawCreatedAt = values[timestampColumn];
+    const createdAt = rawCreatedAt instanceof Date ? rawCreatedAt : new Date(rawCreatedAt);
+    if (Number.isNaN(createdAt.getTime())) return;
+    if (createdAt < cutoff || createdAt > calcTimestamp) return;
+
+    candidates.push({
+      rowNumber: firstRow + index,
+      attribution: parsed.attribution,
+      createdAt,
+    });
+  });
+
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length > 1) return { ambiguous: true, count: candidates.length };
+  return null;
+}
+
+function parseMoney_(value) {
+  const normalized = String(value || '').replace(/[^\d.,-]/g, '').replace(',', '.');
+  const amount = Number(normalized);
+  return Number.isFinite(amount) && amount > 0 ? Math.round(amount) : 0;
 }
 
 function inferService_(message, attribution) {
@@ -316,9 +424,8 @@ function createOrMergeWithDuplicationControl_(
     });
   }
 
-  const response = amoRequest_('/api/v4/leads/complex', 'post', [
-    {
-      name: `Заявка с сайта — ${leadData.service}`,
+  const leadPayload = {
+      name: leadData.leadName || `Заявка с сайта — ${leadData.service}`,
       pipeline_id: BLESK23_CONFIG.pipelineId,
       status_id: firstStage.id,
       responsible_user_id: BLESK23_CONFIG.responsibleUserId,
@@ -333,8 +440,10 @@ function createOrMergeWithDuplicationControl_(
           },
         ],
       },
-    },
-  ]);
+    };
+  if (leadData.price) leadPayload.price = leadData.price;
+
+  const response = amoRequest_('/api/v4/leads/complex', 'post', [leadPayload]);
 
   const result = response && response[0];
   if (!result || !result.id) {
@@ -429,15 +538,16 @@ function createLead_(leadData, pipeline, firstStage) {
   const fieldMap = getCustomFieldMap_('leads');
   const fieldValues = buildLeadFieldValues_(leadData, fieldMap, null);
 
-  const response = amoRequest_('/api/v4/leads', 'post', [
-    {
-      name: `Заявка с сайта — ${leadData.service}`,
+  const payload = {
+      name: leadData.leadName || `Заявка с сайта — ${leadData.service}`,
       pipeline_id: BLESK23_CONFIG.pipelineId,
       status_id: firstStage.id,
       responsible_user_id: BLESK23_CONFIG.responsibleUserId,
       custom_fields_values: fieldValues,
-    },
-  ]);
+    };
+  if (leadData.price) payload.price = leadData.price;
+
+  const response = amoRequest_('/api/v4/leads', 'post', [payload]);
   return response._embedded.leads[0];
 }
 
@@ -450,7 +560,11 @@ function updateExistingLead_(existingLead, leadData) {
     custom_fields_values: fieldValues,
   };
 
-  if (/^(Сделка #|Заявка от)/i.test(existingLead.name || '')) {
+  if (leadData.price) payload.price = leadData.price;
+
+  if (leadData.leadName && leadData.eventKind === 'internal_calc') {
+    payload.name = leadData.leadName;
+  } else if (/^(Сделка #|Заявка от)/i.test(existingLead.name || '')) {
     payload.name = `Заявка — ${leadData.service} — ${leadData.name}`;
   }
 
@@ -471,8 +585,7 @@ function buildLeadFieldValues_(leadData, fieldMap, existingLead) {
     metrika_client_id: leadData.attribution.metrika_client_id,
     'Первая посадочная': leadData.attribution.landing_page,
     'Текущая страница': leadData.attribution.current_page,
-    'Первый источник':
-      leadData.attribution.utm_source || leadData.attribution.referrer || 'direct',
+    'Первый источник': leadData.source,
     utm_referer: leadData.attribution.utm_referer || leadData.attribution.referrer,
     utm_ya_campaign: leadData.attribution.utm_ya_campaign,
     utm_candidate: leadData.attribution.utm_candidate,

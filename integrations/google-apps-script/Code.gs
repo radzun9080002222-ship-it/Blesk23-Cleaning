@@ -8,6 +8,8 @@ const BLESK23_CONFIG = Object.freeze({
   workdayEndHour: 23,
   firstContactSlaMinutes: 5,
   mergeWindowDays: 30,
+  sourceExternalId: 'blesk23_google_forms_2026',
+  sourceName: 'Blesk23 — формы сайта',
   mergeableStageNames: [
     'В работе (связь с клиентом)',
     'Нужен осмотр (дата осмотра)',
@@ -39,6 +41,7 @@ const ATTRIBUTION_HEADER_MAP = Object.freeze({
 
 function setupIntegration() {
   requireAmoToken_();
+  const source = ensureAmoSource_();
 
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const handlers = ScriptApp.getProjectTriggers().filter(
@@ -51,7 +54,10 @@ function setupIntegration() {
     .onFormSubmit()
     .create();
 
-  return testAmoConnection();
+  return Object.assign(testAmoConnection(), {
+    sourceId: source.id,
+    sourceName: source.name,
+  });
 }
 
 function testAmoConnection() {
@@ -277,10 +283,92 @@ function createOrMergeLead_(leadData, contactData) {
     }
   }
 
-  contact = contact || createContact_(contactData);
-  const lead = createLead_(leadData, pipeline, firstStage);
-  linkContactToLeadIfNeeded_(lead.id, contact.id);
-  return { lead, contact, action: 'created' };
+  return createOrMergeWithDuplicationControl_(
+    leadData,
+    contactData,
+    firstStage
+  );
+}
+
+function createOrMergeWithDuplicationControl_(
+  leadData,
+  contactData,
+  firstStage
+) {
+  const phone = normalizePhone_(contactData.phone);
+  if (!phone) throw new Error('Некорректный телефон в заявке.');
+
+  const leadFieldMap = getCustomFieldMap_('leads');
+  const contactFieldMap = getCustomFieldMap_('contacts');
+  const phoneField = contactFieldMap.byCode.PHONE;
+  const emailField = contactFieldMap.byCode.EMAIL;
+  if (!phoneField) throw new Error('Системное поле PHONE не найдено в amoCRM.');
+
+  const contactFields = [
+    {
+      field_id: phoneField.id,
+      values: [{ value: phone, enum_code: 'WORK' }],
+    },
+  ];
+  if (contactData.email && emailField) {
+    contactFields.push({
+      field_id: emailField.id,
+      values: [{ value: contactData.email, enum_code: 'WORK' }],
+    });
+  }
+
+  const response = amoRequest_('/api/v4/leads/complex', 'post', [
+    {
+      name: `Заявка с сайта — ${leadData.service}`,
+      pipeline_id: BLESK23_CONFIG.pipelineId,
+      status_id: firstStage.id,
+      responsible_user_id: BLESK23_CONFIG.responsibleUserId,
+      custom_fields_values: buildLeadFieldValues_(leadData, leadFieldMap, null),
+      request_id: `sheet_${Date.now()}_${phone.slice(-4)}`,
+      _embedded: {
+        contacts: [
+          {
+            name: contactData.name,
+            responsible_user_id: BLESK23_CONFIG.responsibleUserId,
+            custom_fields_values: contactFields,
+          },
+        ],
+        source: {
+          external_id: BLESK23_CONFIG.sourceExternalId,
+          type: 'widget',
+        },
+      },
+    },
+  ]);
+
+  const result = response && response[0];
+  if (!result || !result.id) {
+    throw new Error('amoCRM не вернула ID созданной или объединённой сделки.');
+  }
+
+  let lead = amoRequest_(`/api/v4/leads/${result.id}`, 'get');
+  const unsorted = findUnsortedForLead_(lead.id);
+  if (unsorted) {
+    const accepted = amoRequest_(
+      `/api/v4/leads/unsorted/${unsorted.uid}/accept`,
+      'post',
+      {
+        user_id: BLESK23_CONFIG.responsibleUserId,
+        status_id: firstStage.id,
+      }
+    );
+    lead = amoRequest_(`/api/v4/leads/${accepted._embedded.leads[0].id}`, 'get');
+  }
+
+  lead = updateExistingLead_(lead, leadData);
+  const contactId = Number(result.contact_id) || findMainContactIdForLead_(lead.id);
+  const contact = contactId ? { id: contactId } : null;
+
+  return {
+    lead,
+    contact,
+    action: result.merged || unsorted ? 'merged_by_phone' : 'created',
+  };
 }
 
 function findUnsortedForContact_(contactId) {
@@ -296,6 +384,28 @@ function findUnsortedForContact_(contactId) {
       )
     ) || null
   );
+}
+
+function findUnsortedForLead_(leadId) {
+  const result = amoRequest_(
+    `/api/v4/leads/unsorted?filter[pipeline_id]=${BLESK23_CONFIG.pipelineId}&limit=250&order[created_at]=desc`,
+    'get'
+  );
+  const unsorted = result && result._embedded ? result._embedded.unsorted || [] : [];
+  return (
+    unsorted.find((item) =>
+      ((item._embedded && item._embedded.leads) || []).some(
+        (lead) => Number(lead.id) === Number(leadId)
+      )
+    ) || null
+  );
+}
+
+function findMainContactIdForLead_(leadId) {
+  const lead = amoRequest_(`/api/v4/leads/${leadId}?with=contacts`, 'get');
+  const contacts = lead && lead._embedded ? lead._embedded.contacts || [] : [];
+  const main = contacts.find((contact) => contact.is_main) || contacts[0];
+  return main ? Number(main.id) : null;
 }
 
 function findMergeableLeadForContact_(contactId, pipeline) {
@@ -406,6 +516,24 @@ function buildLeadFieldValues_(leadData, fieldMap, existingLead) {
 
 function getPipeline_() {
   return amoRequest_(`/api/v4/leads/pipelines/${BLESK23_CONFIG.pipelineId}`, 'get');
+}
+
+function ensureAmoSource_() {
+  const response = amoRequest_('/api/v4/sources?limit=250', 'get');
+  const sources = response && response._embedded ? response._embedded.sources || [] : [];
+  const existing = sources.find(
+    (source) => source.external_id === BLESK23_CONFIG.sourceExternalId
+  );
+  if (existing) return existing;
+
+  const created = amoRequest_('/api/v4/sources', 'post', [
+    {
+      name: BLESK23_CONFIG.sourceName,
+      external_id: BLESK23_CONFIG.sourceExternalId,
+      pipeline_id: BLESK23_CONFIG.pipelineId,
+    },
+  ]);
+  return created._embedded.sources[0];
 }
 
 function getPipelineStatuses_(pipeline) {

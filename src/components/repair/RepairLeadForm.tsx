@@ -63,10 +63,11 @@ const RepairLeadForm = () => {
       setIsSending(true);
       setError(false);
       await sendToGoogleForm({ name: name.trim(), phone: phone.trim() });
-      reachGoal('form_submit');
+      reachGoal('form_submit', { form: 'repair_lead_form' });
       setSent(true);
     } catch (err) {
       console.error(err);
+      reachGoal('form_error', { form: 'repair_lead_form' });
       setError(true);
     } finally {
       setIsSending(false);
@@ -88,6 +89,7 @@ const RepairLeadForm = () => {
   return (
     <form
       onSubmit={onSubmit}
+      data-track-form="repair_lead_form"
       className="rounded-3xl bg-white border border-[#DDEBE8] p-6 md:p-8 shadow-[0_8px_40px_-12px_rgba(0,63,59,0.15)] space-y-4"
     >
       <div>
@@ -121,6 +123,8 @@ const RepairLeadForm = () => {
         required
       />
 
+      <ConsentCheckbox id="repair-consent" checked={consent} onChange={setConsent} />
+
       <Button
         type="submit"
         size="lg"
@@ -135,8 +139,6 @@ const RepairLeadForm = () => {
           Не удалось отправить заявку. Попробуйте ещё раз или напишите в мессенджер.
         </p>
       )}
-
-      <ConsentCheckbox id="repair-consent" checked={consent} onChange={setConsent} />
     </form>
   );
 };

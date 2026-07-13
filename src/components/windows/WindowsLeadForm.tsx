@@ -74,9 +74,10 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
         (totalLabel ? `Расчёт: ${totalLabel}. ` : '') +
         (composition ? `Состав: ${composition}` : '');
       await send({ name: name.trim(), phone: phone.trim(), comment: appendLeadTracking(comment) });
-      reachGoal('form_submit');
+      reachGoal('form_submit', { form: 'windows_lead_form' });
       setSent(true);
     } catch {
+      reachGoal('form_error', { form: 'windows_lead_form' });
       setError(true);
     } finally {
       setBusy(false);
@@ -98,6 +99,7 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
   return (
     <form
       onSubmit={onSubmit}
+      data-track-form="windows_lead_form"
       className="rounded-3xl bg-white border border-[#DDEBE8] p-6 md:p-7 shadow-[0_8px_40px_-12px_rgba(0,63,59,0.15)] space-y-3"
     >
       <div>
@@ -131,6 +133,8 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
         required
       />
 
+      <ConsentCheckbox id="windows-consent" checked={consent} onChange={setConsent} />
+
       <Button
         type="submit"
         size="lg"
@@ -145,9 +149,6 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
           Не удалось отправить — напишите в мессенджер.
         </p>
       )}
-
-      <ConsentCheckbox id="windows-consent" checked={consent} onChange={setConsent} />
-
       <div className="pt-2 border-t border-[#DDEBE8]">
         <p className="text-xs text-center text-muted-foreground mb-2">Или напишите сразу:</p>
         <div className="grid grid-cols-3 gap-2">

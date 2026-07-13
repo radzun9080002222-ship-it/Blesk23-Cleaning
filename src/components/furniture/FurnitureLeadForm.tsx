@@ -72,9 +72,10 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
         (totalLabel ? `Расчёт: ${totalLabel}. ` : '') +
         (composition ? `Состав: ${composition}` : '');
       await send({ name: name.trim(), phone: phone.trim(), comment: appendLeadTracking(comment) });
-      reachGoal('form_submit');
+      reachGoal('form_submit', { form: 'furniture_lead_form' });
       setSent(true);
     } catch {
+      reachGoal('form_error', { form: 'furniture_lead_form' });
       setError(true);
     } finally {
       setBusy(false);
@@ -98,6 +99,7 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
   return (
     <form
       onSubmit={onSubmit}
+      data-track-form="furniture_lead_form"
       className="rounded-3xl bg-white border border-[#DDEBE8] p-6 md:p-7 shadow-[0_8px_40px_-12px_rgba(0,63,59,0.15)] space-y-3"
     >
       <div>
@@ -131,6 +133,8 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
         required
       />
 
+      <ConsentCheckbox id="furniture-consent" checked={consent} onChange={setConsent} />
+
       <Button
         type="submit"
         size="lg"
@@ -145,9 +149,6 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
           Не удалось отправить — напишите в мессенджер.
         </p>
       )}
-
-      <ConsentCheckbox id="furniture-consent" checked={consent} onChange={setConsent} />
-
       <div className="pt-2 border-t border-[#DDEBE8]">
         <p className="text-xs text-center text-muted-foreground mb-2">
           Или напишите сразу:

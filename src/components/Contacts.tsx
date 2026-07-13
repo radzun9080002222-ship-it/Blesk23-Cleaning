@@ -3,7 +3,6 @@ import { MapPin, Phone, Mail, Clock, Send, MessageCircle } from "lucide-react";
 import maxIcon from "@/assets/max-icon.webp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { reachGoal } from "@/lib/metrika";
 import ConsentCheckbox from "@/components/ConsentCheckbox";
 import { appendLeadTracking } from "@/lib/leadTracking";
@@ -80,7 +79,6 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [message, setMessage] = useState(prefilledMessage);
   const [consent, setConsent] = useState(false);
 
@@ -97,7 +95,6 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
 
     const n = name.trim();
     const p = normalizePhone(phone.trim());
-    const em = email.trim();
     const msg = appendLeadTracking(message.trim());
 
     if (!p || !consent) {
@@ -112,20 +109,20 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
       await sendToGoogleForm({
         name: n,
         phone: p,
-        email: em,
+        email: "",
         message: msg,
       });
 
-      reachGoal("form_submit");
+      reachGoal("form_submit", { form: "main_contact_form" });
       setStatus("success");
 
       setName("");
       setPhone("");
-      setEmail("");
       setMessage(prefilledMessage || "");
       setConsent(false);
     } catch (err) {
       console.error(err);
+      reachGoal("form_error", { form: "main_contact_form" });
       setStatus("error");
     } finally {
       setIsSending(false);
@@ -237,10 +234,10 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
             <div className="p-8 rounded-3xl bg-card border border-border shadow-xl">
               <h3 className="font-heading text-2xl font-bold mb-2">Оставить заявку</h3>
               <p className="text-muted-foreground mb-6">
-                Заполните форму и мы свяжемся с вами в течение 15 минут
+                Оставьте телефон — перезвоним в течение 2 минут и назовём стоимость
               </p>
 
-              <form className="space-y-5" onSubmit={handleSubmit}>
+              <form className="space-y-5" onSubmit={handleSubmit} data-track-form="main_contact_form">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label htmlFor="contact-name" className="text-sm font-medium">Имя</label>
@@ -276,32 +273,7 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="contact-email" className="text-sm font-medium">Email</label>
-                  <Input
-                    id="contact-email"
-                    name="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    type="email"
-                    placeholder="example@mail.ru"
-                    className="rounded-xl h-12 bg-muted/50 border-border focus:border-primary"
-                    autoComplete="email"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="contact-message" className="text-sm font-medium">Сообщение</label>
-                  <Textarea
-                    id="contact-message"
-                    name="message"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Расскажите о вашем помещении и пожеланиях..."
-                    rows={4}
-                    className="rounded-xl bg-muted/50 border-border focus:border-primary resize-none"
-                  />
-                </div>
+                <ConsentCheckbox id="contact-consent" checked={consent} onChange={setConsent} />
 
                 <Button
                   type="submit"
@@ -318,7 +290,7 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
 
                 {status === "success" && (
                   <p className="text-xs text-muted-foreground text-center">
-                    Спасибо! Мы получили заявку и свяжемся с вами в течение 15 минут.
+                    Спасибо! Мы получили заявку и скоро свяжемся с вами.
                   </p>
                 )}
 
@@ -327,8 +299,6 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                     Не удалось отправить заявку. Попробуйте ещё раз или напишите в мессенджер.
                   </p>
                 )}
-
-                <ConsentCheckbox id="contact-consent" checked={consent} onChange={setConsent} />
               </form>
             </div>
           </div>

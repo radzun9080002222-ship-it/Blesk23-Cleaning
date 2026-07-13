@@ -41,7 +41,6 @@ const ATTRIBUTION_HEADER_MAP = Object.freeze({
 
 function setupIntegration() {
   requireAmoToken_();
-  const source = ensureAmoSource_();
 
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const handlers = ScriptApp.getProjectTriggers().filter(
@@ -55,8 +54,8 @@ function setupIntegration() {
     .create();
 
   return Object.assign(testAmoConnection(), {
-    sourceId: source.id,
-    sourceName: source.name,
+    sourceName: BLESK23_CONFIG.sourceName,
+    sourceStatus: 'created_by_amocrm_after_first_lead',
   });
 }
 
@@ -333,10 +332,6 @@ function createOrMergeWithDuplicationControl_(
             custom_fields_values: contactFields,
           },
         ],
-        source: {
-          external_id: BLESK23_CONFIG.sourceExternalId,
-          type: 'widget',
-        },
       },
     },
   ]);
@@ -516,24 +511,6 @@ function buildLeadFieldValues_(leadData, fieldMap, existingLead) {
 
 function getPipeline_() {
   return amoRequest_(`/api/v4/leads/pipelines/${BLESK23_CONFIG.pipelineId}`, 'get');
-}
-
-function ensureAmoSource_() {
-  const response = amoRequest_('/api/v4/sources?limit=250', 'get');
-  const sources = response && response._embedded ? response._embedded.sources || [] : [];
-  const existing = sources.find(
-    (source) => source.external_id === BLESK23_CONFIG.sourceExternalId
-  );
-  if (existing) return existing;
-
-  const created = amoRequest_('/api/v4/sources', 'post', [
-    {
-      name: BLESK23_CONFIG.sourceName,
-      external_id: BLESK23_CONFIG.sourceExternalId,
-      pipeline_id: BLESK23_CONFIG.pipelineId,
-    },
-  ]);
-  return created._embedded.sources[0];
 }
 
 function getPipelineStatuses_(pipeline) {

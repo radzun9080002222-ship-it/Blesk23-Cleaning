@@ -323,7 +323,6 @@ const FurnitureCleaning = () => {
                     href={waUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => reachGoal('messenger_click')}
                   >
                     <MessageCircle className="w-5 h-5 mr-2" />
                     WhatsApp
@@ -338,7 +337,6 @@ const FurnitureCleaning = () => {
                     href={tgUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => reachGoal('messenger_click')}
                   >
                     <Send className="w-5 h-5 mr-2" />
                     Telegram
@@ -353,7 +351,6 @@ const FurnitureCleaning = () => {
                     href={maxUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => reachGoal('messenger_click')}
                   >
                     <img src={maxIcon} alt="Max" className="w-5 h-5 rounded mr-2" />
                     Max
@@ -688,7 +685,6 @@ const FurnitureCleaning = () => {
                     href={waUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => reachGoal('messenger_click')}
                   >
                     <MessageCircle className="w-5 h-5 mr-2" />
                     WhatsApp
@@ -703,7 +699,6 @@ const FurnitureCleaning = () => {
                     href={tgUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => reachGoal('messenger_click')}
                   >
                     <Send className="w-5 h-5 mr-2" />
                     Telegram
@@ -718,7 +713,6 @@ const FurnitureCleaning = () => {
                     href={maxUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => reachGoal('messenger_click')}
                   >
                     <img src={maxIcon} alt="Max" className="w-5 h-5 rounded mr-2" />
                     Max

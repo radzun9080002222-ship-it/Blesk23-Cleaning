@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import maxIcon from '@/assets/max-icon.webp';
-import { reachGoal } from '@/lib/metrika';
 
 interface ServiceItem {
   name: string;
@@ -229,7 +228,6 @@ const ServicePageLayout = ({
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => reachGoal('messenger_click')}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors"
                 >
                   <MessageCircle className="w-5 h-5" />
@@ -239,7 +237,6 @@ const ServicePageLayout = ({
                   href={telegramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => reachGoal('messenger_click')}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors"
                 >
                   <Send className="w-5 h-5" />
@@ -249,7 +246,6 @@ const ServicePageLayout = ({
                   href={maxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => reachGoal('messenger_click')}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors"
                 >
                   <img src={maxIcon} alt="Max" className="w-5 h-5 rounded" />

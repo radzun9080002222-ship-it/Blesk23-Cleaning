@@ -158,7 +158,6 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
             href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => reachGoal('messenger_click')}
             className="flex items-center justify-center h-10 rounded-xl bg-[#25D366] text-white text-xs font-semibold gap-1"
           >
             <MessageCircle className="w-4 h-4" />
@@ -168,7 +167,6 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
             href={tgUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => reachGoal('messenger_click')}
             className="flex items-center justify-center h-10 rounded-xl bg-[#229ED9] text-white text-xs font-semibold gap-1"
           >
             <Send className="w-4 h-4" />
@@ -178,7 +176,6 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
             href={maxUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => reachGoal('messenger_click')}
             className="flex items-center justify-center h-10 rounded-xl bg-white border border-[#DDEBE8] text-[#0D4D49] text-xs font-semibold gap-1"
           >
             <img src={maxIcon} alt="" className="w-4 h-4 rounded" />

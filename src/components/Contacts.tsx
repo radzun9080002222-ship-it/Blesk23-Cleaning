@@ -198,7 +198,6 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => reachGoal("messenger_click")}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-md transition-all"
                 >
                   <MessageCircle className="w-5 h-5 text-primary" />
@@ -209,7 +208,6 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                   href={telegramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => reachGoal("messenger_click")}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-md transition-all"
                 >
                   <Send className="w-5 h-5 text-primary" />
@@ -220,7 +218,6 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                   href={maxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => reachGoal("messenger_click")}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-md transition-all"
                 >
                   <img src={maxIcon} alt="Max" className="w-5 h-5 rounded" />

@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Home, Building2, Briefcase, MessageCircle, Send } from 'lucide-react';
-import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
 
 const MIN_PRICE = 6000;
@@ -125,7 +124,6 @@ const RepairCalculator = () => {
                   href={waHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => reachGoal('messenger_click')}
                 >
                   <MessageCircle className="w-5 h-5 mr-2" />
                   WhatsApp
@@ -140,7 +138,6 @@ const RepairCalculator = () => {
                   href={tgHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => reachGoal('messenger_click')}
                 >
                   <Send className="w-5 h-5 mr-2" />
                   Telegram
@@ -156,7 +153,6 @@ const RepairCalculator = () => {
                   href={maxHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => reachGoal('messenger_click')}
                 >
                   <img src={maxIcon} alt="Max" className="w-5 h-5 rounded mr-2" />
                   Max

@@ -52,6 +52,13 @@ describe('automatic Metrika goals', () => {
       'whatsapp_click',
       expect.objectContaining({ page: '/', placement: 'hero' })
     );
+    expect(ym).toHaveBeenCalledTimes(1);
+    expect(ym).not.toHaveBeenCalledWith(
+      107216997,
+      'reachGoal',
+      'messenger_click',
+      expect.anything()
+    );
     dispose();
   });
 

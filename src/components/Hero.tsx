@@ -55,7 +55,6 @@ const Hero = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                   data-track-placement="hero"
-                  onClick={() => reachGoal('messenger_click', { channel: 'whatsapp', placement: 'hero' })}
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
                   Рассчитать в WhatsApp

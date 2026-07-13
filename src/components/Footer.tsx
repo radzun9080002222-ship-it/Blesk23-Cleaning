@@ -121,7 +121,6 @@ const Footer = () => {
                 href="https://wa.me/79002885255"
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => reachGoal('messenger_click')}
                 className="flex items-center gap-2 text-sm text-background/50 hover:text-primary transition-colors"
               >
                 <MessageCircle className="w-4 h-4" />
@@ -131,7 +130,6 @@ const Footer = () => {
                 href="https://t.me/+79002885255"
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => reachGoal('messenger_click')}
                 className="flex items-center gap-2 text-sm text-background/50 hover:text-primary transition-colors"
               >
                 <Send className="w-4 h-4" />
@@ -141,7 +139,6 @@ const Footer = () => {
                 href="https://max.ru/u/f9LHodD0cOJtMUjlrXWI6y94fo8f8qPlmQdiA50RMF8i1MsNISiZPv1iKWk"
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => reachGoal('messenger_click')}
                 className="flex items-center gap-2 text-sm text-background/50 hover:text-primary transition-colors"
               >
                 <img src={maxIcon} alt="Max" className="w-4 h-4 rounded" />

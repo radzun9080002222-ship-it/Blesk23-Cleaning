@@ -25,7 +25,6 @@ const FloatingContact = () => {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Написать в MAX"
-          onClick={() => reachGoal('messenger_click')}
           className="flex h-12 w-[108px] shrink-0 items-center justify-center gap-2 rounded-full bg-[#168B7A] px-4 text-[15px] font-bold text-white transition-all hover:bg-[#117567] hover:shadow-md active:scale-[0.98]"
         >
           <MessageCircle className="h-4 w-4 fill-current" aria-hidden="true" />

@@ -266,17 +266,17 @@ const WindowsCleaning = () => {
                   Рассчитать за 2 минуты
                 </Button>
                 <Button asChild size="lg" className="rounded-full px-7 bg-[#25D366] hover:bg-[#1ebe5b] text-white">
-                  <a href={waUrl} target="_blank" rel="noopener noreferrer" onClick={() => reachGoal('messenger_click')}>
+                  <a href={waUrl} target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="w-5 h-5 mr-2" />WhatsApp
                   </a>
                 </Button>
                 <Button asChild size="lg" className="rounded-full px-7 bg-[#229ED9] hover:bg-[#1d8dc2] text-white">
-                  <a href={tgUrl} target="_blank" rel="noopener noreferrer" onClick={() => reachGoal('messenger_click')}>
+                  <a href={tgUrl} target="_blank" rel="noopener noreferrer">
                     <Send className="w-5 h-5 mr-2" />Telegram
                   </a>
                 </Button>
                 <Button asChild size="lg" className="rounded-full px-7 bg-white text-[#003F3B] hover:bg-white/90">
-                  <a href={maxUrl} target="_blank" rel="noopener noreferrer" onClick={() => reachGoal('messenger_click')}>
+                  <a href={maxUrl} target="_blank" rel="noopener noreferrer">
                     <img src={maxIcon} alt="Max" className="w-5 h-5 rounded mr-2" />Max
                   </a>
                 </Button>
@@ -505,17 +505,17 @@ const WindowsCleaning = () => {
                   </a>
                 </Button>
                 <Button asChild size="lg" className="rounded-full px-7 bg-[#25D366] hover:bg-[#1ebe5b] text-white">
-                  <a href={waUrl} target="_blank" rel="noopener noreferrer" onClick={() => reachGoal('messenger_click')}>
+                  <a href={waUrl} target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="w-5 h-5 mr-2" />WhatsApp
                   </a>
                 </Button>
                 <Button asChild size="lg" className="rounded-full px-7 bg-[#229ED9] hover:bg-[#1d8dc2] text-white">
-                  <a href={tgUrl} target="_blank" rel="noopener noreferrer" onClick={() => reachGoal('messenger_click')}>
+                  <a href={tgUrl} target="_blank" rel="noopener noreferrer">
                     <Send className="w-5 h-5 mr-2" />Telegram
                   </a>
                 </Button>
                 <Button asChild size="lg" className="rounded-full px-7 bg-white text-[#003F3B] hover:bg-white/90">
-                  <a href={maxUrl} target="_blank" rel="noopener noreferrer" onClick={() => reachGoal('messenger_click')}>
+                  <a href={maxUrl} target="_blank" rel="noopener noreferrer">
                     <img src={maxIcon} alt="Max" className="w-5 h-5 rounded mr-2" />Max
                   </a>
                 </Button>

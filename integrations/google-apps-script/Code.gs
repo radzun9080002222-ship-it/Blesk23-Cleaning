@@ -9,6 +9,10 @@ const BLESK23_CONFIG = Object.freeze({
   firstContactSlaMinutes: 5,
   mergeWindowDays: 30,
   phoneClickAttributionMinutes: 15,
+  metrikaCounterId: 107216997,
+  metrikaSyncMinutes: 15,
+  metrikaLookbackDays: 21,
+  metrikaQueueSheetName: 'Метрика — конверсии',
   sourceExternalId: 'blesk23_google_forms_2026',
   sourceName: 'Blesk23 — формы сайта',
   mergeableStageNames: [
@@ -16,6 +20,13 @@ const BLESK23_CONFIG = Object.freeze({
     'Нужен осмотр (дата осмотра)',
     'Принимают решение',
     'Чаты активные',
+  ],
+  metrikaGoals: [
+    { target: 'qualified_lead', name: 'Квалифицированный лид (amoCRM)' },
+    { target: 'booking', name: 'Запись на уборку (amoCRM)' },
+    { target: 'service_completed', name: 'Уборка выполнена (amoCRM)' },
+    { target: 'paid_order', name: 'Оплаченный заказ (amoCRM)' },
+    { target: 'paid_new_client', name: 'Оплаченный новый клиент (amoCRM)' },
   ],
 });
 
@@ -770,6 +781,429 @@ function requireAmoToken_() {
   if (!token) {
     throw new Error(
       'В свойствах скрипта не задан AMO_LONG_LIVED_TOKEN. Добавьте токен приватной интеграции amoCRM.'
+    );
+  }
+  return token;
+}
+
+function setupMetrikaIntegration() {
+  requireAmoToken_();
+  requireMetrikaToken_();
+  ensureMetrikaQueueSheet_();
+  validateMetrikaGoals_();
+
+  ScriptApp.getProjectTriggers()
+    .filter((trigger) => trigger.getHandlerFunction() === 'syncAmoConversionsToMetrika')
+    .forEach((trigger) => ScriptApp.deleteTrigger(trigger));
+
+  ScriptApp.newTrigger('syncAmoConversionsToMetrika')
+    .timeBased()
+    .everyMinutes(BLESK23_CONFIG.metrikaSyncMinutes)
+    .create();
+
+  return Object.assign(testMetrikaConnection(), previewMetrikaConversions(), {
+    trigger: `every_${BLESK23_CONFIG.metrikaSyncMinutes}_minutes`,
+  });
+}
+
+function testMetrikaConnection() {
+  const counter = metrikaRequest_(
+    `/management/v1/counter/${BLESK23_CONFIG.metrikaCounterId}`,
+    'get'
+  );
+  return {
+    metrikaCounterId: counter.counter && counter.counter.id,
+    metrikaCounterName: counter.counter && counter.counter.name,
+    site: counter.counter && counter.counter.site,
+  };
+}
+
+function previewMetrikaConversions() {
+  const collected = collectMetrikaConversions_();
+  const result = {
+    scannedLeads: collected.scannedLeads,
+    leadsWithoutIdentifiers: collected.leadsWithoutIdentifiers,
+    detectedConversions: collected.conversions.length,
+    sample: collected.conversions.slice(0, 20).map((item) => ({
+      leadId: item.leadId,
+      leadName: item.leadName,
+      target: item.target,
+      eventTime: item.eventTime,
+      price: item.price,
+      hasClientId: Boolean(item.clientId),
+      hasYclid: Boolean(item.yclid),
+    })),
+  };
+  console.log(JSON.stringify(result));
+  return result;
+}
+
+function syncAmoConversionsToMetrika() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    requireAmoToken_();
+    requireMetrikaToken_();
+    validateMetrikaGoals_();
+
+    const collected = collectMetrikaConversions_();
+    const queueSheet = ensureMetrikaQueueSheet_();
+    const sentSignatures = getMetrikaSentSignatures_(queueSheet);
+    const pending = collected.conversions.filter(
+      (item) => !sentSignatures.has(item.signature)
+    );
+
+    if (pending.length === 0) {
+      const emptyResult = {
+        scannedLeads: collected.scannedLeads,
+        leadsWithoutIdentifiers: collected.leadsWithoutIdentifiers,
+        detectedConversions: collected.conversions.length,
+        uploadedConversions: 0,
+      };
+      console.log(JSON.stringify(emptyResult));
+      return emptyResult;
+    }
+
+    const upload = uploadMetrikaConversions_(pending);
+    appendMetrikaQueueRows_(queueSheet, pending, upload);
+
+    const result = {
+      scannedLeads: collected.scannedLeads,
+      leadsWithoutIdentifiers: collected.leadsWithoutIdentifiers,
+      detectedConversions: collected.conversions.length,
+      uploadedConversions: pending.length,
+      uploadId: getMetrikaUploadId_(upload),
+    };
+    console.log(JSON.stringify(result));
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function validateMetrikaGoals_() {
+  const response = metrikaRequest_(
+    `/management/v1/counter/${BLESK23_CONFIG.metrikaCounterId}/goals`,
+    'get'
+  );
+  const goals = response.goals || [];
+  const identifiers = new Set();
+
+  goals.forEach((goal) => {
+    (goal.conditions || []).forEach((condition) => {
+      if (condition.url) identifiers.add(String(condition.url));
+    });
+  });
+
+  const missing = BLESK23_CONFIG.metrikaGoals
+    .map((goal) => goal.target)
+    .filter((target) => !identifiers.has(target));
+  if (missing.length > 0) {
+    throw new Error(`В Метрике не найдены цели: ${missing.join(', ')}`);
+  }
+  return true;
+}
+
+function collectMetrikaConversions_() {
+  const pipeline = getPipeline_();
+  const statusesById = {};
+  getPipelineStatuses_(pipeline).forEach((status) => {
+    statusesById[Number(status.id)] = status.name;
+  });
+
+  const fieldMap = getCustomFieldMap_('leads');
+  const leads = listRecentAmoLeads_();
+  const conversions = [];
+  let leadsWithoutIdentifiers = 0;
+
+  leads.forEach((lead) => {
+    const clientId = getLeadFieldValue_(lead, fieldMap, 'metrika_client_id');
+    const yclid = getLeadFieldValue_(lead, fieldMap, 'yclid');
+    if (!clientId && !yclid) {
+      leadsWithoutIdentifiers += 1;
+      return;
+    }
+
+    const statusName = statusesById[Number(lead.status_id)] || '';
+    const status = normalizeMetrikaState_(statusName);
+    if (status.indexOf('закрыто и не реализовано') !== -1) return;
+
+    const qualification = normalizeMetrikaState_(
+      getLeadFieldValue_(lead, fieldMap, 'Квалификация')
+    );
+    const clientType = normalizeMetrikaState_(
+      getLeadFieldValue_(lead, fieldMap, 'Тип клиента')
+    );
+    const paidValue = getLeadFieldValue_(lead, fieldMap, 'Оплачено');
+    const paidDateValue = getLeadFieldValue_(lead, fieldMap, 'Дата оплаты');
+
+    const qualifiedByField =
+      /(квалифиц|целев)/.test(qualification) &&
+      !/(не квалифиц|неквалифиц|нецелев|спам|мусор)/.test(qualification);
+    const qualifiedByStage = /нужен осмотр|принимают решение|назначена дата клининга|выполнен|успешно реализовано/.test(status);
+    const isBooked = /назначена дата клининга|выполнен|успешно реализовано/.test(status);
+    const isCompleted = /выполнен|успешно реализовано/.test(status);
+    const paidDate = parseAmoDate_(paidDateValue);
+    const isPaid =
+      /успешно реализовано/.test(status) ||
+      isTruthyAmoValue_(paidValue) ||
+      Boolean(paidDate);
+    const isNewClient = /нов/.test(clientType) && !/повтор/.test(clientType);
+
+    const standardEventTime = clampMetrikaEventTime_(
+      Number(lead.updated_at || lead.created_at || 0)
+    );
+    const paidEventTime = clampMetrikaEventTime_(
+      paidDate || Number(lead.closed_at || lead.updated_at || lead.created_at || 0)
+    );
+
+    if (qualifiedByField || qualifiedByStage) {
+      addMetrikaConversion_(conversions, lead, 'qualified_lead', standardEventTime, 0, clientId, yclid);
+    }
+    if (isBooked) {
+      addMetrikaConversion_(conversions, lead, 'booking', standardEventTime, 0, clientId, yclid);
+    }
+    if (isCompleted) {
+      addMetrikaConversion_(conversions, lead, 'service_completed', standardEventTime, 0, clientId, yclid);
+    }
+    if (isPaid) {
+      const revenue = Math.max(0, Math.round(Number(lead.price || 0)));
+      addMetrikaConversion_(conversions, lead, 'paid_order', paidEventTime, revenue, clientId, yclid);
+      if (isNewClient) {
+        addMetrikaConversion_(conversions, lead, 'paid_new_client', paidEventTime, revenue, clientId, yclid);
+      }
+    }
+  });
+
+  return {
+    scannedLeads: leads.length,
+    leadsWithoutIdentifiers,
+    conversions,
+  };
+}
+
+function listRecentAmoLeads_() {
+  const cutoff = Math.floor(Date.now() / 1000) - BLESK23_CONFIG.metrikaLookbackDays * 86400;
+  const leads = [];
+  let page = 1;
+
+  while (true) {
+    const response = amoRequest_(
+      `/api/v4/leads?filter[pipeline_id]=${BLESK23_CONFIG.pipelineId}&limit=250&page=${page}`,
+      'get'
+    );
+    const batch = response && response._embedded ? response._embedded.leads || [] : [];
+    batch.forEach((lead) => {
+      if (Number(lead.updated_at || lead.created_at || 0) >= cutoff) leads.push(lead);
+    });
+    if (batch.length < 250) break;
+    page += 1;
+  }
+  return leads;
+}
+
+function getLeadFieldValue_(lead, fieldMap, fieldName) {
+  const field = fieldMap.byName[fieldName];
+  if (!field) return '';
+  const current = (lead.custom_fields_values || []).find(
+    (item) => Number(item.field_id) === Number(field.id)
+  );
+  const first = current && current.values && current.values[0];
+  return first && first.value !== undefined && first.value !== null ? first.value : '';
+}
+
+function addMetrikaConversion_(collection, lead, target, eventTime, price, clientId, yclid) {
+  if (!eventTime) return;
+  const cutoff = Math.floor(Date.now() / 1000) - BLESK23_CONFIG.metrikaLookbackDays * 86400;
+  if (eventTime < cutoff) return;
+
+  const normalizedPrice = Math.max(0, Math.round(Number(price || 0)));
+  collection.push({
+    detectedAt: new Date().toISOString(),
+    leadId: Number(lead.id),
+    leadName: String(lead.name || ''),
+    target,
+    clientId: String(clientId || ''),
+    yclid: String(yclid || ''),
+    purchaseId: `amo_${lead.id}_${target}`,
+    eventTime,
+    price: normalizedPrice,
+    currency: 'RUB',
+    signature: `${lead.id}:${target}:${normalizedPrice}`,
+  });
+}
+
+function clampMetrikaEventTime_(value) {
+  let timestamp = Number(value || 0);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return 0;
+  if (timestamp > 1000000000000) timestamp = Math.floor(timestamp / 1000);
+  const now = Math.floor(Date.now() / 1000);
+  return Math.min(Math.floor(timestamp), now);
+}
+
+function parseAmoDate_(value) {
+  if (!value) return 0;
+  if (value instanceof Date) return Math.floor(value.getTime() / 1000);
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric > 1000000000000 ? Math.floor(numeric / 1000) : Math.floor(numeric);
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 0 : Math.floor(parsed.getTime() / 1000);
+}
+
+function isTruthyAmoValue_(value) {
+  if (value === true || value === 1) return true;
+  return /^(1|true|да|оплачен|оплачено)$/i.test(String(value || '').trim());
+}
+
+function normalizeMetrikaState_(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[\\/]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function uploadMetrikaConversions_(conversions) {
+  const headers = ['ClientID', 'yclid', 'PurchaseId', 'Target', 'DateTime', 'Price', 'Currency'];
+  const rows = conversions.map((item) => [
+    item.clientId,
+    item.yclid,
+    item.purchaseId,
+    item.target,
+    item.eventTime,
+    item.price || '',
+    item.price ? item.currency : '',
+  ]);
+  const csv = [headers].concat(rows)
+    .map((row) => row.map(csvCell_).join(','))
+    .join('\n');
+  const token = requireMetrikaToken_();
+  const url =
+    `https://api-metrika.yandex.net/management/v1/counter/${BLESK23_CONFIG.metrikaCounterId}` +
+    '/offline_conversions/upload?type=BASIC&comment=Blesk23%20amoCRM';
+  const response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    muteHttpExceptions: true,
+    headers: { Authorization: `OAuth ${token}` },
+    payload: {
+      file: Utilities.newBlob(csv, 'text/csv', 'blesk23_offline_conversions.csv'),
+    },
+  });
+  const status = response.getResponseCode();
+  const body = response.getContentText();
+  const parsed = body ? JSON.parse(body) : {};
+  if (status < 200 || status >= 300) {
+    throw new Error(`Метрика offline API ${status}: ${body.slice(0, 1000)}`);
+  }
+  return parsed;
+}
+
+function ensureMetrikaQueueSheet_() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = spreadsheet.getSheetByName(BLESK23_CONFIG.metrikaQueueSheetName);
+  if (!sheet) sheet = spreadsheet.insertSheet(BLESK23_CONFIG.metrikaQueueSheetName);
+
+  const headers = [
+    'detected_at',
+    'amo_lead_id',
+    'lead_name',
+    'target',
+    'client_id',
+    'yclid',
+    'purchase_id',
+    'event_time',
+    'price',
+    'currency',
+    'signature',
+    'upload_id',
+    'status',
+    'error',
+  ];
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function getMetrikaSentSignatures_(sheet) {
+  if (sheet.getLastRow() < 2) return new Set();
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
+  const signatureColumn = headers.indexOf('signature');
+  const statusColumn = headers.indexOf('status');
+  if (signatureColumn === -1 || statusColumn === -1) return new Set();
+
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getDisplayValues();
+  return new Set(
+    rows
+      .filter((row) => row[statusColumn] === 'uploaded')
+      .map((row) => row[signatureColumn])
+      .filter(Boolean)
+  );
+}
+
+function appendMetrikaQueueRows_(sheet, conversions, upload) {
+  const uploadId = getMetrikaUploadId_(upload);
+  const rows = conversions.map((item) => [
+    item.detectedAt,
+    item.leadId,
+    item.leadName,
+    item.target,
+    item.clientId,
+    item.yclid,
+    item.purchaseId,
+    item.eventTime,
+    item.price,
+    item.currency,
+    item.signature,
+    uploadId,
+    'uploaded',
+    '',
+  ]);
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+}
+
+function getMetrikaUploadId_(response) {
+  return String(
+    (response && response.uploading && response.uploading.id) ||
+    (response && response.id) ||
+    ''
+  );
+}
+
+function csvCell_(value) {
+  const text = String(value === undefined || value === null ? '' : value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function metrikaRequest_(path, method, payload) {
+  const options = {
+    method: method || 'get',
+    muteHttpExceptions: true,
+    headers: {
+      Authorization: `OAuth ${requireMetrikaToken_()}`,
+      'Content-Type': 'application/json',
+    },
+  };
+  if (payload !== undefined) options.payload = JSON.stringify(payload);
+  const response = UrlFetchApp.fetch(`https://api-metrika.yandex.net${path}`, options);
+  const status = response.getResponseCode();
+  const body = response.getContentText();
+  const parsed = body ? JSON.parse(body) : {};
+  if (status < 200 || status >= 300) {
+    throw new Error(`Метрика API ${status}: ${body.slice(0, 1000)}`);
+  }
+  return parsed;
+}
+
+function requireMetrikaToken_() {
+  const token = PropertiesService.getScriptProperties().getProperty('METRIKA_OAUTH_TOKEN');
+  if (!token) {
+    throw new Error(
+      'В свойствах скрипта не задан METRIKA_OAUTH_TOKEN с правами metrika:read и metrika:offline_data.'
     );
   }
   return token;

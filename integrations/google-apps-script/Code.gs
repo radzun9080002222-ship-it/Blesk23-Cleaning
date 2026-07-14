@@ -4,11 +4,9 @@ const BLESK23_CONFIG = Object.freeze({
   firstStageName: 'В работе (связь с клиентом)',
   responsibleUserId: 13491146,
   sheetName: 'Ответы на форму (1)',
-  workdayStartHour: 8,
-  workdayEndHour: 23,
-  firstContactSlaMinutes: 5,
   mergeWindowDays: 30,
   phoneClickAttributionMinutes: 15,
+  operationalSyncMinutes: 15,
   metrikaCounterId: 107216997,
   metrikaSyncMinutes: 15,
   metrikaLookbackDays: 21,
@@ -199,7 +197,6 @@ function syncRow_(sheet, rowNumber, force) {
       });
     }
 
-    createFirstContactTaskIfNeeded_(lead.id);
     addLeadNote_(lead.id, parsed.message, parsed.attribution);
 
     writeSyncResult_(sheet, rowNumber, headers, {
@@ -667,26 +664,6 @@ function linkContactToLeadIfNeeded_(leadId, contactId) {
   ]);
 }
 
-function createFirstContactTaskIfNeeded_(leadId) {
-  const tasks = amoRequest_(
-    `/api/v4/tasks?filter[entity_type]=leads&filter[entity_id]=${leadId}&filter[is_completed]=0&limit=50`,
-    'get'
-  );
-  const openTasks = tasks && tasks._embedded ? tasks._embedded.tasks || [] : [];
-  if (openTasks.length > 0) return;
-
-  amoRequest_('/api/v4/tasks', 'post', [
-    {
-      entity_id: leadId,
-      entity_type: 'leads',
-      responsible_user_id: BLESK23_CONFIG.responsibleUserId,
-      task_type_id: 1,
-      complete_till: calculateSlaDeadline_(),
-      text: 'Связаться с новым клиентом в течение 5 минут. Уточнить услугу, адрес, площадь, желаемую дату и бюджет.',
-    },
-  ]);
-}
-
 function addLeadNote_(leadId, message, attribution) {
   const attributionText = Object.keys(attribution)
     .sort()
@@ -701,26 +678,209 @@ function addLeadNote_(leadId, message, attribution) {
   ]);
 }
 
-function calculateSlaDeadline_() {
-  const now = new Date();
-  const timezone = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
-  const hour = Number(Utilities.formatDate(now, timezone, 'H'));
-  const minute = Number(Utilities.formatDate(now, timezone, 'm'));
-  const currentMinutes = hour * 60 + minute;
-  const startMinutes = BLESK23_CONFIG.workdayStartHour * 60;
-  const endMinutes = BLESK23_CONFIG.workdayEndHour * 60;
-  const sla = BLESK23_CONFIG.firstContactSlaMinutes;
-  let due;
+function setupOperationalAutomation() {
+  requireAmoToken_();
 
-  if (currentMinutes < startMinutes) {
-    due = new Date(now.getTime() + (startMinutes + sla - currentMinutes) * 60000);
-  } else if (currentMinutes + sla >= endMinutes) {
-    due = new Date(now.getTime() + (24 * 60 + startMinutes + sla - currentMinutes) * 60000);
-  } else {
-    due = new Date(now.getTime() + sla * 60000);
+  ScriptApp.getProjectTriggers()
+    .filter((trigger) => trigger.getHandlerFunction() === 'syncAmoLeadAutomation')
+    .forEach((trigger) => ScriptApp.deleteTrigger(trigger));
+
+  ScriptApp.newTrigger('syncAmoLeadAutomation')
+    .timeBased()
+    .everyMinutes(BLESK23_CONFIG.operationalSyncMinutes)
+    .create();
+
+  return Object.assign(syncAmoLeadAutomation(), {
+    trigger: `every_${BLESK23_CONFIG.operationalSyncMinutes}_minutes`,
+  });
+}
+
+function syncAmoLeadAutomation() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    requireAmoToken_();
+    const result = applyAmoLeadAutomation_();
+    console.log(JSON.stringify(result));
+    return result;
+  } finally {
+    lock.releaseLock();
   }
+}
 
-  return Math.floor(due.getTime() / 1000);
+function applyAmoLeadAutomation_() {
+  const pipeline = getPipeline_();
+  const statuses = getPipelineStatuses_(pipeline);
+  const statusesById = {};
+  statuses.forEach((status) => {
+    statusesById[Number(status.id)] = normalizeMetrikaState_(status.name);
+  });
+
+  const successfulStatusIds = new Set(
+    statuses
+      .filter((status) => /успешно реализовано/.test(normalizeMetrikaState_(status.name)))
+      .map((status) => Number(status.id))
+  );
+  const fieldMap = getCustomFieldMap_('leads');
+  const leads = listRecentAmoLeads_();
+  const leadCache = {};
+  leads.forEach((lead) => {
+    leadCache[Number(lead.id)] = lead;
+  });
+
+  const updates = [];
+  const result = {
+    scannedLeads: leads.length,
+    updatedLeads: 0,
+    qualificationFilled: 0,
+    clientTypeFilled: 0,
+    paidFilled: 0,
+    paidDateFilled: 0,
+    skippedMissingFieldConfiguration: 0,
+  };
+
+  leads.forEach((lead) => {
+    const status = statusesById[Number(lead.status_id)] || '';
+    if (/закрыто и не реализовано/.test(status)) return;
+
+    const fieldValues = [];
+    const qualification = getLeadFieldValue_(lead, fieldMap, 'Квалификация');
+    const isQualifiedStage = /нужен осмотр|принимают решение|назначена дата клининга|выполнен|успешно реализовано/.test(status);
+    if (!hasAmoValue_(qualification) && isQualifiedStage) {
+      const update = buildAmoChoiceUpdate_(
+        fieldMap.byName['Квалификация'],
+        (value) => /(квалифиц|целев)/.test(value) && !/(не квалифиц|неквалифиц|нецелев)/.test(value),
+        'Квалифицирован'
+      );
+      if (update) {
+        fieldValues.push(update);
+        result.qualificationFilled += 1;
+      } else {
+        result.skippedMissingFieldConfiguration += 1;
+      }
+    }
+
+    const clientType = getLeadFieldValue_(lead, fieldMap, 'Тип клиента');
+    if (!hasAmoValue_(clientType) && isQualifiedStage) {
+      const contactId = findMainContactIdForLead_(lead.id);
+      if (contactId) {
+        const isRepeat = hasPreviousSuccessfulLead_(
+          lead,
+          contactId,
+          successfulStatusIds,
+          leadCache
+        );
+        const update = buildAmoChoiceUpdate_(
+          fieldMap.byName['Тип клиента'],
+          isRepeat
+            ? (value) => /повтор/.test(value)
+            : (value) => /нов/.test(value) && !/повтор/.test(value),
+          isRepeat ? 'Повторный' : 'Новый'
+        );
+        if (update) {
+          fieldValues.push(update);
+          result.clientTypeFilled += 1;
+        } else {
+          result.skippedMissingFieldConfiguration += 1;
+        }
+      }
+    }
+
+    if (successfulStatusIds.has(Number(lead.status_id))) {
+      const paid = getLeadFieldValue_(lead, fieldMap, 'Оплачено');
+      if (!isTruthyAmoValue_(paid)) {
+        const update = buildAmoPaidUpdate_(fieldMap.byName['Оплачено']);
+        if (update) {
+          fieldValues.push(update);
+          result.paidFilled += 1;
+        } else {
+          result.skippedMissingFieldConfiguration += 1;
+        }
+      }
+
+      const paidDate = getLeadFieldValue_(lead, fieldMap, 'Дата оплаты');
+      if (!parseAmoDate_(paidDate)) {
+        const update = buildAmoDateUpdate_(
+          fieldMap.byName['Дата оплаты'],
+          Number(lead.closed_at || lead.updated_at || lead.created_at || Math.floor(Date.now() / 1000))
+        );
+        if (update) {
+          fieldValues.push(update);
+          result.paidDateFilled += 1;
+        } else {
+          result.skippedMissingFieldConfiguration += 1;
+        }
+      }
+    }
+
+    if (fieldValues.length > 0) {
+      updates.push({ id: Number(lead.id), custom_fields_values: fieldValues });
+    }
+  });
+
+  for (let index = 0; index < updates.length; index += 50) {
+    amoRequest_('/api/v4/leads', 'patch', updates.slice(index, index + 50));
+  }
+  result.updatedLeads = updates.length;
+  return result;
+}
+
+function hasPreviousSuccessfulLead_(lead, contactId, successfulStatusIds, leadCache) {
+  const contact = amoRequest_(`/api/v4/contacts/${contactId}?with=leads`, 'get');
+  const linkedLeads = contact && contact._embedded ? contact._embedded.leads || [] : [];
+  const currentCreatedAt = Number(lead.created_at || 0);
+
+  return linkedLeads.some((item) => {
+    const leadId = Number(item.id);
+    if (!leadId || leadId === Number(lead.id)) return false;
+
+    if (!leadCache[leadId]) {
+      leadCache[leadId] = amoRequest_(`/api/v4/leads/${leadId}`, 'get');
+    }
+    const previous = leadCache[leadId];
+    return (
+      Number(previous.pipeline_id) === BLESK23_CONFIG.pipelineId &&
+      successfulStatusIds.has(Number(previous.status_id)) &&
+      Number(previous.created_at || 0) < currentCreatedAt
+    );
+  });
+}
+
+function hasAmoValue_(value) {
+  return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function getAmoEnums_(field) {
+  if (!field || !field.enums) return [];
+  return Array.isArray(field.enums) ? field.enums : Object.keys(field.enums).map((key) => field.enums[key]);
+}
+
+function buildAmoChoiceUpdate_(field, matcher, fallbackValue) {
+  if (!field) return null;
+  const enums = getAmoEnums_(field);
+  if (enums.length > 0) {
+    const match = enums.find((item) => matcher(normalizeMetrikaState_(item.value)));
+    return match ? { field_id: field.id, values: [{ enum_id: match.id }] } : null;
+  }
+  return { field_id: field.id, values: [{ value: fallbackValue }] };
+}
+
+function buildAmoPaidUpdate_(field) {
+  if (!field) return null;
+  if (field.type === 'checkbox') {
+    return { field_id: field.id, values: [{ value: true }] };
+  }
+  return buildAmoChoiceUpdate_(
+    field,
+    (value) => /^(да|оплачено|оплачен)$/.test(value) || (/оплач/.test(value) && !/не оплач/.test(value)),
+    'Да'
+  );
+}
+
+function buildAmoDateUpdate_(field, timestamp) {
+  if (!field || !timestamp) return null;
+  return { field_id: field.id, values: [{ value: Number(timestamp) }] };
 }
 
 function getCustomFieldMap_(entity) {

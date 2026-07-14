@@ -1,4 +1,7 @@
-import { queuePhoneClickAttribution } from '@/lib/leadTracking';
+import {
+  queueMessengerClickAttribution,
+  queuePhoneClickAttribution,
+} from '@/lib/leadTracking';
 
 declare global {
   interface Window {
@@ -59,9 +62,16 @@ export const installAutomaticGoalTracking = () => {
     if (href.startsWith('tel:')) {
       reachGoal('phone_click', details);
       queuePhoneClickAttribution(details.placement);
-    } else if (href.includes('wa.me/')) reachGoal('whatsapp_click', details);
-    else if (href.includes('t.me/')) reachGoal('telegram_click', details);
-    else if (href.includes('max.ru/')) reachGoal('max_click', details);
+    } else if (href.includes('wa.me/')) {
+      reachGoal('whatsapp_click', details);
+      queueMessengerClickAttribution('whatsapp', details.placement);
+    } else if (href.includes('t.me/')) {
+      reachGoal('telegram_click', details);
+      queueMessengerClickAttribution('telegram', details.placement);
+    } else if (href.includes('max.ru/')) {
+      reachGoal('max_click', details);
+      queueMessengerClickAttribution('max', details.placement);
+    }
     else if (href.startsWith('mailto:')) reachGoal('email_click', details);
 
     const servicePath = link.getAttribute('href') || '';

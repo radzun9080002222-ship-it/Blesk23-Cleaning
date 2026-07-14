@@ -6,6 +6,7 @@ const BLESK23_CONFIG = Object.freeze({
   sheetName: 'Ответы на форму (1)',
   mergeWindowDays: 30,
   phoneClickAttributionMinutes: 15,
+  messengerClickAttributionMinutes: 20,
   operationalSyncMinutes: 15,
   metrikaCounterId: 107216997,
   metrikaSyncMinutes: 15,
@@ -125,7 +126,7 @@ function syncRow_(sheet, rowNumber, force) {
 
   try {
     const parsed = parseLeadMessage_(record['Сообщение'] || '');
-    if (parsed.attribution.event_kind === 'phone_click') {
+    if (isTrackingClickEvent_(parsed.attribution.event_kind)) {
       const clickSource = inferSource_(parsed.attribution);
       writeTechnicalValues_(
         sheet,
@@ -137,7 +138,9 @@ function syncRow_(sheet, rowNumber, force) {
         })
       );
       writeSyncResult_(sheet, rowNumber, headers, {
-        amo_sync_status: 'phone_click_logged',
+        amo_sync_status: parsed.attribution.event_kind === 'phone_click'
+          ? 'phone_click_logged'
+          : 'messenger_click_logged',
         amo_sync_error: '',
         amo_synced_at: new Date().toISOString(),
       });
@@ -252,6 +255,15 @@ function inferSource_(attribution) {
   if (attribution.yclid) return 'Яндекс Директ';
   if (attribution.event_kind === 'internal_calc') return 'Телефон / источник не определён';
   return 'Сайт / прямой переход';
+}
+
+function isTrackingClickEvent_(eventKind) {
+  return /^(phone|whatsapp|telegram|max)_click$/.test(String(eventKind || ''));
+}
+
+function getMessengerChannelFromEvent_(eventKind) {
+  const match = String(eventKind || '').match(/^(whatsapp|telegram|max)_click$/);
+  return match ? match[1] : '';
 }
 
 function findRecentPhoneClick_(sheet, calcRowNumber, headers) {
@@ -623,11 +635,16 @@ function buildLeadFieldValues_(leadData, fieldMap, existingLead) {
     if (!value || !field) return;
     const existingValue = existingByFieldId[Number(field.id)];
 
+    const replacesUnknownSource =
+      (name === 'Источник обращения' || name === 'Первый источник') &&
+      /не определ[её]н|прямой переход/i.test(existingValue || '') &&
+      !/не определ[её]н|прямой переход/i.test(String(value));
+
     if (name === 'Услуга' && existingValue && existingValue !== String(value)) {
       const services = existingValue.split(';').map((item) => item.trim());
       if (services.indexOf(String(value)) === -1) value = `${existingValue}; ${value}`;
       else value = existingValue;
-    } else if (name !== 'Текущая страница' && existingValue) {
+    } else if (name !== 'Текущая страница' && existingValue && !replacesUnknownSource) {
       value = existingValue;
     }
 
@@ -1021,6 +1038,214 @@ function setupSiteEngagementGoals() {
   return result;
 }
 
+function syncMessengerClicksToAmo() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    requireAmoToken_();
+    const result = syncMessengerClickAttributions_();
+    console.log(JSON.stringify(result));
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function syncMessengerClickAttributions_() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(BLESK23_CONFIG.sheetName);
+  if (!sheet || sheet.getLastRow() < 2) {
+    return { pendingClicks: 0, matchedClicks: 0, ambiguousClicks: 0 };
+  }
+
+  const lastColumn = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0];
+  const messageColumn = headers.indexOf('Сообщение');
+  const statusColumn = headers.indexOf('amo_sync_status');
+  const timestampColumn = Math.max(
+    headers.indexOf('Отметка времени'),
+    headers.indexOf('Timestamp'),
+    0
+  );
+  if (messageColumn === -1 || statusColumn === -1) {
+    return { pendingClicks: 0, matchedClicks: 0, ambiguousClicks: 0 };
+  }
+
+  const firstRow = Math.max(2, sheet.getLastRow() - 500);
+  const rows = sheet
+    .getRange(firstRow, 1, sheet.getLastRow() - firstRow + 1, lastColumn)
+    .getValues();
+  const clicks = [];
+
+  rows.forEach((values, index) => {
+    if (String(values[statusColumn] || '') !== 'messenger_click_logged') return;
+    const parsed = parseLeadMessage_(String(values[messageColumn] || ''));
+    const channel = getMessengerChannelFromEvent_(parsed.attribution.event_kind);
+    if (!channel) return;
+
+    const rawCreatedAt = values[timestampColumn];
+    const createdAt = rawCreatedAt instanceof Date
+      ? rawCreatedAt
+      : new Date(rawCreatedAt);
+    if (Number.isNaN(createdAt.getTime())) return;
+
+    clicks.push({
+      rowNumber: firstRow + index,
+      attribution: parsed.attribution,
+      channel,
+      createdAt,
+    });
+  });
+
+  if (clicks.length === 0) {
+    return { pendingClicks: 0, matchedClicks: 0, ambiguousClicks: 0 };
+  }
+
+  const windowMs = BLESK23_CONFIG.messengerClickAttributionMinutes * 60000;
+  const from = Math.min.apply(null, clicks.map((item) => item.createdAt.getTime()));
+  const to = Math.max.apply(null, clicks.map((item) => item.createdAt.getTime())) + windowMs;
+  const talks = listTalksForAttribution_(from, to);
+  const pairsByClick = {};
+  const pairsByTalk = {};
+
+  clicks.forEach((click) => {
+    pairsByClick[click.rowNumber] = [];
+    talks.forEach((talk) => {
+      const delta = Number(talk.created_at || 0) * 1000 - click.createdAt.getTime();
+      if (talk.channel !== click.channel || delta < 0 || delta > windowMs) return;
+
+      const pair = { click, talk };
+      pairsByClick[click.rowNumber].push(pair);
+      if (!pairsByTalk[talk.talk_id]) pairsByTalk[talk.talk_id] = [];
+      pairsByTalk[talk.talk_id].push(pair);
+    });
+  });
+
+  const fieldMap = getCustomFieldMap_('leads');
+  const claimedTalkIds = new Set();
+  let matchedClicks = 0;
+  let ambiguousClicks = 0;
+
+  clicks.forEach((click) => {
+    const candidates = pairsByClick[click.rowNumber] || [];
+    if (candidates.length !== 1) {
+      if (candidates.length > 1) ambiguousClicks += 1;
+      return;
+    }
+
+    const pair = candidates[0];
+    if ((pairsByTalk[pair.talk.talk_id] || []).length !== 1) {
+      ambiguousClicks += 1;
+      return;
+    }
+    if (claimedTalkIds.has(pair.talk.talk_id)) return;
+
+    const leadId = Number(pair.talk.entity_id || 0);
+    if (!leadId) return;
+    const lead = amoRequest_(`/api/v4/leads/${leadId}`, 'get');
+    const source = inferSource_(click.attribution);
+    const currentService = getLeadFieldValue_(lead, fieldMap, 'Услуга');
+    const leadData = {
+      source,
+      service: currentService || inferService_('', click.attribution),
+      attribution: click.attribution,
+    };
+    const fieldValues = buildLeadFieldValues_(leadData, fieldMap, lead);
+    if (fieldValues.length > 0) {
+      amoRequest_('/api/v4/leads', 'patch', [
+        { id: leadId, custom_fields_values: fieldValues },
+      ]);
+    }
+
+    writeSyncResult_(sheet, click.rowNumber, headers, {
+      amo_lead_id: String(leadId),
+      amo_sync_status: 'messenger_click_claimed',
+      amo_sync_error: `matched_${click.channel}_talk_${pair.talk.talk_id}`,
+      amo_synced_at: new Date().toISOString(),
+    });
+    addLeadNote_(
+      leadId,
+      `Атрибуция чата ${click.channel}: переход с сайта сопоставлен с началом беседы по времени.`,
+      click.attribution
+    );
+    claimedTalkIds.add(pair.talk.talk_id);
+    matchedClicks += 1;
+  });
+
+  return {
+    pendingClicks: clicks.length,
+    matchedClicks,
+    ambiguousClicks,
+  };
+}
+
+function listTalksForAttribution_(fromMs, toMs) {
+  const talks = [];
+  const contactCache = {};
+  const contactFieldMap = getCustomFieldMap_('contacts');
+
+  for (let page = 1; page <= 4; page += 1) {
+    const response = amoRequest_(`/api/v4/talks?limit=250&page=${page}`, 'get');
+    const batch = response && response._embedded ? response._embedded.talks || [] : [];
+    batch.forEach((talk) => {
+      const createdAtMs = Number(talk.created_at || 0) * 1000;
+      if (
+        talk.entity_type !== 'lead' ||
+        !talk.entity_id ||
+        createdAtMs < fromMs ||
+        createdAtMs > toMs
+      ) {
+        return;
+      }
+
+      const contactId = Number(talk.contact_id || 0);
+      if (!contactId) return;
+      if (!contactCache[contactId]) {
+        contactCache[contactId] = amoRequest_(`/api/v4/contacts/${contactId}`, 'get');
+      }
+      const channel = detectMessengerChannel_(
+        contactCache[contactId],
+        contactFieldMap,
+        talk.origin
+      );
+      if (channel) talks.push(Object.assign({}, talk, { channel }));
+    });
+    if (batch.length < 250) break;
+  }
+
+  return talks;
+}
+
+function detectMessengerChannel_(contact, fieldMap, origin) {
+  const hasValue = (name) => Boolean(getEntityFieldValue_(contact, fieldMap, name));
+  if (hasValue('MaxId_WZ') || hasValue('MaxgroupId_WZ')) return 'max';
+  if (hasValue('TelegramId_WZ') || hasValue('TelegramUsername_WZ')) return 'telegram';
+  if (
+    hasValue('WhatsappLid_WZ') ||
+    hasValue('WhatsappUsername_WZ') ||
+    hasValue('Whatsgroup_WZ')
+  ) {
+    return 'whatsapp';
+  }
+
+  const normalizedOrigin = String(origin || '').toLowerCase();
+  if (normalizedOrigin.includes('max')) return 'max';
+  if (normalizedOrigin.includes('telegram')) return 'telegram';
+  if (normalizedOrigin.includes('whatsapp')) return 'whatsapp';
+  return '';
+}
+
+function getEntityFieldValue_(entity, fieldMap, fieldName) {
+  const field = fieldMap.byName[fieldName];
+  if (!field) return '';
+  const current = (entity.custom_fields_values || []).find(
+    (item) => Number(item.field_id) === Number(field.id)
+  );
+  const first = current && current.values && current.values[0];
+  return first && first.value !== undefined && first.value !== null ? first.value : '';
+}
+
 function previewMetrikaConversions() {
   const collected = collectMetrikaConversions_();
   const result = {
@@ -1050,6 +1275,16 @@ function syncAmoConversionsToMetrika() {
     requireMetrikaToken_();
     validateMetrikaGoals_();
 
+    let messengerAttribution = null;
+    try {
+      messengerAttribution = syncMessengerClickAttributions_();
+    } catch (error) {
+      messengerAttribution = {
+        error: String(error && error.message ? error.message : error).slice(0, 500),
+      };
+      console.error(JSON.stringify({ messengerAttribution }));
+    }
+
     const collected = collectMetrikaConversions_();
     const queueSheet = ensureMetrikaQueueSheet_();
     const sentSignatures = getMetrikaSentSignatures_(queueSheet);
@@ -1063,6 +1298,7 @@ function syncAmoConversionsToMetrika() {
         leadsWithoutIdentifiers: collected.leadsWithoutIdentifiers,
         detectedConversions: collected.conversions.length,
         uploadedConversions: 0,
+        messengerAttribution,
       };
       console.log(JSON.stringify(emptyResult));
       return emptyResult;
@@ -1077,6 +1313,7 @@ function syncAmoConversionsToMetrika() {
       detectedConversions: collected.conversions.length,
       uploadedConversions: pending.length,
       uploadId: getMetrikaUploadId_(upload),
+      messengerAttribution,
     };
     console.log(JSON.stringify(result));
     return result;
@@ -1410,6 +1647,198 @@ function requireMetrikaToken_() {
     );
   }
   return token;
+}
+
+function setupWazzupWebhookSecret() {
+  const properties = PropertiesService.getScriptProperties();
+  let secret = properties.getProperty('WAZZUP_WEBHOOK_SECRET');
+  if (!secret) {
+    secret = `${Utilities.getUuid()}${Utilities.getUuid()}`.replace(/-/g, '');
+    properties.setProperty('WAZZUP_WEBHOOK_SECRET', secret);
+  }
+  return {
+    secret,
+    query: `secret=${encodeURIComponent(secret)}`,
+  };
+}
+
+function doPost(event) {
+  try {
+    const expectedSecret = PropertiesService.getScriptProperties().getProperty(
+      'WAZZUP_WEBHOOK_SECRET'
+    );
+    const receivedSecret = event && event.parameter ? event.parameter.secret : '';
+    if (!expectedSecret || receivedSecret !== expectedSecret) {
+      return jsonOutput_({ ok: false, error: 'unauthorized' });
+    }
+
+    const raw = event && event.postData ? event.postData.contents : '';
+    const payload = raw ? JSON.parse(raw) : {};
+    const messages = collectWazzupMessageEvents_(payload);
+    const results = messages.map(handleWazzupMessageEvent_);
+    return jsonOutput_({ ok: true, received: messages.length, results });
+  } catch (error) {
+    console.error(String(error && error.stack ? error.stack : error));
+    return jsonOutput_({
+      ok: false,
+      error: String(error && error.message ? error.message : error).slice(0, 500),
+    });
+  }
+}
+
+function collectWazzupMessageEvents_(payload) {
+  const messages = [];
+  const seen = new Set();
+
+  const visit = (value) => {
+    if (!value) return;
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value !== 'object') return;
+
+    if (value.message_id && value.direction && value.recipient) {
+      const messageId = String(value.message_id);
+      if (!seen.has(messageId)) {
+        seen.add(messageId);
+        messages.push(value);
+      }
+    }
+
+    if (value.data) visit(value.data);
+    if (value.events) visit(value.events);
+  };
+
+  visit(payload);
+  return messages;
+}
+
+function handleWazzupMessageEvent_(message) {
+  if (String(message.direction || '').toLowerCase() !== 'inbound') {
+    return { messageId: String(message.message_id || ''), status: 'ignored_outbound' };
+  }
+
+  const phones = extractRussianPhones_(message.text || '');
+  if (phones.length === 0) {
+    return { messageId: String(message.message_id || ''), status: 'no_phone' };
+  }
+  if (phones.length > 1) {
+    return {
+      messageId: String(message.message_id || ''),
+      status: 'ambiguous_phones',
+      count: phones.length,
+    };
+  }
+
+  const contact = findContactByWazzupRecipient_(message.recipient || {});
+  if (!contact) {
+    return { messageId: String(message.message_id || ''), status: 'contact_not_found' };
+  }
+
+  const phone = phones[0];
+  const action = appendPhoneToContact_(contact, phone);
+  return {
+    messageId: String(message.message_id || ''),
+    contactId: Number(contact.id),
+    phone,
+    status: action,
+  };
+}
+
+function extractRussianPhones_(text) {
+  const matches = String(text || '').match(/(?:\+?7|8)[\s().-]*(?:\d[\s().-]*){10}/g) || [];
+  return Array.from(
+    new Set(matches.map(normalizePhone_).filter(Boolean))
+  );
+}
+
+function findContactByWazzupRecipient_(recipient) {
+  const chatType = String(recipient.chat_type || '').toLowerCase();
+  const chatId = String(recipient.chat_id || '').trim();
+  const username = String(recipient.username || '').trim();
+  const recipientPhone = normalizePhone_(recipient.phone || '');
+
+  if (recipientPhone) {
+    const byPhone = findContactByPhone_(recipientPhone);
+    if (byPhone) return byPhone;
+  }
+  if (chatType === 'whatsapp') {
+    const byChatPhone = findContactByPhone_(chatId);
+    if (byChatPhone) return byChatPhone;
+  }
+
+  const fieldMap = getCustomFieldMap_('contacts');
+  const fieldNamesByChannel = {
+    max: ['MaxId_WZ', 'MaxgroupId_WZ'],
+    maxgroup: ['MaxgroupId_WZ', 'MaxId_WZ'],
+    telegram: ['TelegramId_WZ', 'TelegramUsername_WZ'],
+    telegroup: ['TelegramId_WZ', 'TelegramUsername_WZ'],
+    whatsapp: ['WhatsappLid_WZ', 'WhatsappUsername_WZ'],
+    whatsgroup: ['Whatsgroup_WZ', 'WhatsappLid_WZ'],
+  };
+  const expectedValues = [chatId, username, String(recipient.phone || '')].filter(Boolean);
+  const queries = Array.from(new Set(expectedValues));
+
+  for (let queryIndex = 0; queryIndex < queries.length; queryIndex += 1) {
+    const query = queries[queryIndex];
+    const response = amoRequest_(
+      `/api/v4/contacts?query=${encodeURIComponent(query)}&limit=50`,
+      'get'
+    );
+    const contacts = response && response._embedded
+      ? response._embedded.contacts || []
+      : [];
+    const fieldNames = fieldNamesByChannel[chatType] || [];
+    const match = contacts.find((contact) =>
+      fieldNames.some((fieldName) => {
+        const value = String(getEntityFieldValue_(contact, fieldMap, fieldName) || '');
+        return expectedValues.some(
+          (expected) => value === expected || value.replace(/\D/g, '') === expected.replace(/\D/g, '')
+        );
+      })
+    );
+    if (match) return match;
+  }
+  return null;
+}
+
+function appendPhoneToContact_(contact, phoneValue) {
+  const phone = normalizePhone_(phoneValue);
+  if (!phone) return 'invalid_phone';
+
+  const fieldMap = getCustomFieldMap_('contacts');
+  const phoneField = fieldMap.byCode.PHONE;
+  if (!phoneField) throw new Error('Системное поле PHONE не найдено в amoCRM.');
+
+  const currentField = (contact.custom_fields_values || []).find(
+    (field) => Number(field.field_id) === Number(phoneField.id)
+  );
+  const currentValues = (currentField && currentField.values) || [];
+  if (currentValues.some((item) => normalizePhone_(item.value) === phone)) {
+    return 'phone_already_present';
+  }
+
+  const values = currentValues.map((item) => ({
+    value: item.value,
+    enum_id: item.enum_id,
+    enum_code: item.enum_code,
+  }));
+  values.push({ value: phone, enum_code: 'WORK' });
+
+  amoRequest_('/api/v4/contacts', 'patch', [
+    {
+      id: Number(contact.id),
+      custom_fields_values: [{ field_id: phoneField.id, values }],
+    },
+  ]);
+  return 'phone_added';
+}
+
+function jsonOutput_(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(
+    ContentService.MimeType.JSON
+  );
 }
 
 function normalizePhone_(value) {

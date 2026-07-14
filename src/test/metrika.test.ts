@@ -4,6 +4,8 @@ import { installAutomaticGoalTracking } from '@/lib/metrika';
 describe('automatic Metrika goals', () => {
   afterEach(() => {
     document.body.innerHTML = '';
+    sessionStorage.clear();
+    localStorage.clear();
     delete window.ym;
     window.history.replaceState({}, '', '/');
     vi.unstubAllGlobals();
@@ -38,7 +40,10 @@ describe('automatic Metrika goals', () => {
 
   it('separates WhatsApp clicks from the aggregate messenger goal', () => {
     const ym = vi.fn();
+    const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(new Response()));
     window.ym = ym;
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.replaceState({}, '', '/?utm_source=yandex&yclid=wa-123');
     document.body.innerHTML = '<a href="https://wa.me/79002885255" data-track-placement="hero">WhatsApp</a>';
     const dispose = installAutomaticGoalTracking();
 
@@ -59,6 +64,38 @@ describe('automatic Metrika goals', () => {
       'messenger_click',
       expect.anything()
     );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(String(request?.body)).toContain('event_kind%3A+whatsapp_click');
+    expect(String(request?.body)).toContain('messenger_channel%3A+whatsapp');
+    expect(String(request?.body)).toContain('yclid%3A+wa-123');
+    dispose();
+  });
+
+  it('stores a MAX click with its Yandex identifiers before navigation', () => {
+    const ym = vi.fn();
+    const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(new Response()));
+    window.ym = ym;
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.replaceState({}, '', '/?utm_source=yandex&yclid=max-123');
+    document.body.innerHTML = '<a href="https://max.ru/u/example" data-track-placement="hero">MAX</a>';
+    const dispose = installAutomaticGoalTracking();
+
+    const link = document.querySelector('a');
+    link?.addEventListener('click', (event) => event.preventDefault());
+    link?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(ym).toHaveBeenCalledWith(
+      107216997,
+      'reachGoal',
+      'max_click',
+      expect.objectContaining({ page: '/', placement: 'hero' })
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(String(request?.body)).toContain('event_kind%3A+max_click');
+    expect(String(request?.body)).toContain('messenger_channel%3A+max');
+    expect(String(request?.body)).toContain('yclid%3A+max-123');
     dispose();
   });
 

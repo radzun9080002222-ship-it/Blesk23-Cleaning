@@ -4,7 +4,19 @@ import { appendLeadTracking, captureLeadAttribution } from '@/lib/leadTracking';
 describe('lead attribution', () => {
   beforeEach(() => {
     sessionStorage.clear();
+    localStorage.clear();
     window.history.replaceState({}, '', '/?utm_source=yandex&utm_campaign=cleaning&yclid=123');
+  });
+
+  it('keeps attribution across browser sessions for 90 days', () => {
+    captureLeadAttribution();
+    sessionStorage.clear();
+    window.history.replaceState({}, '', '/kontakty');
+
+    const message = appendLeadTracking('Заявка');
+
+    expect(message).toContain('utm_source: yandex');
+    expect(message).toContain('yclid: 123');
   });
 
   it('keeps initial campaign parameters after navigation', () => {

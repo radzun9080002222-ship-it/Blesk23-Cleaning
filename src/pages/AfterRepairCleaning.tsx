@@ -1,6 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { Phone, MessageCircle, Send, CheckCircle2, Star, ShieldCheck, FileText, Sparkles } from 'lucide-react';
+import { Phone, MessageCircle, Send, CheckCircle2, ShieldCheck, FileText, Sparkles } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -13,6 +13,7 @@ import Footer from '@/components/Footer';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
 import RepairCalculator from '@/components/repair/RepairCalculator';
 import RepairLeadForm from '@/components/repair/RepairLeadForm';
+import YandexReviewsSection from '@/components/YandexReviewsSection';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
 
@@ -23,7 +24,6 @@ const maxUrl =
 const phone = '+7 900 288-52-55';
 const waUrl = 'https://wa.me/79002885255';
 const tgUrl = 'https://t.me/+79002885255';
-const reviewsUrl = 'https://yandex.ru/maps/org/21130859655/reviews/';
 
 const beforeAfterItems = [
   { before: '/images/repair/02_gostinaya_do.webp', after: '/images/repair/02_gostinaya_posle.webp', caption: 'Гостиная, ЖК в Сочи' },
@@ -58,21 +58,6 @@ const steps = [
   { n: '02', t: 'Выезд', d: 'Приезжаем с HEPA-пылесосами, парогенератором и химией' },
   { n: '03', t: 'Уборка за 1 день', d: 'Принимаете работу по чек-листу' },
   { n: '04', t: 'Оплата', d: 'Только после приёмки. Чек и договор' },
-];
-
-const reviews = [
-  {
-    name: 'Tohir I.',
-    text: 'Заказал клининг после ремонта! Девчонки молодцы, справились с поставленной задачей на 100%! Спасибо огромное! Теперь и у меня есть феи чистоты. Рекомендую!',
-  },
-  {
-    name: 'Мариям Тохчукова',
-    text: 'Это самая лучшая клининговая компания в Сочи. Хотела после ремонта уже чистоту и порядок, но самой тяжело было убраться. Попросила их. Всё блестит, сверкает. Видна работа грамотных мастеров!',
-  },
-  {
-    name: 'Ирина Я.',
-    text: 'Огромная благодарность девочкам, которые убирали папе дом. Дом был очень грязный — справились великолепно, всё отмыли, даже постирали и повесили шторы. Большой объём работы за день, приехали со всем оборудованием и химией.',
-  },
 ];
 
 const faq = [
@@ -126,7 +111,6 @@ const AfterRepairCleaning = () => {
       addressCountry: 'RU',
     },
     priceRange: 'от 280 ₽/м²',
-    aggregateRating: { '@type': 'AggregateRating', ratingValue: '5.0', ratingCount: '55', reviewCount: '48' },
     areaServed: ['Сочи', 'Адлер', 'Красная Поляна'],
     openingHours: 'Mo-Su 08:00-23:00',
   };
@@ -137,7 +121,7 @@ const AfterRepairCleaning = () => {
         <title>Уборка после ремонта в Сочи — от 280 ₽/м² | Империя Блеска</title>
         <meta
           name="description"
-          content="Уборка после ремонта в Сочи от 280 ₽/м². Удалим строительную пыль, плёнку, краску и затирку за 1 день. Точная цена в WhatsApp за 2 минуты. Рейтинг 5.0 — 48 отзывов."
+          content="Уборка после ремонта в Сочи от 280 ₽/м². Удалим строительную пыль, плёнку, краску и затирку за 1 день. Точная цена в WhatsApp за 2 минуты. Реальные отзывы — в Яндекс Картах."
         />
         <link rel="canonical" href="https://www.blesk23.ru/uborka-posle-remonta-sochi" />
         <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
@@ -176,8 +160,8 @@ const AfterRepairCleaning = () => {
 
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
-                  <Star className="w-3.5 h-3.5 fill-[#F5C518] text-[#F5C518]" />
-                  Рейтинг 5.0 · 48 отзывов в Яндексе
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Отзывы подтверждены Яндексом
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -376,58 +360,27 @@ const AfterRepairCleaning = () => {
           </div>
         </section>
 
-        {/* REVIEWS */}
-        <section className="py-16 md:py-24 bg-white border-y border-[#DDEBE8]">
-          <div className="container mx-auto px-4 max-w-6xl">
-            <div className="text-center mb-10">
-              <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                Рейтинг 5.0 — 48 отзывов в Яндексе
-              </h2>
-            </div>
+        <YandexReviewsSection
+          placement="repair_reviews"
+          title="Отзывы об уборке после ремонта в Яндекс Картах"
+          description="Смотрите актуальные отзывы клиентов об уборке квартир, домов и новостроек после ремонта. Полная лента загружается напрямую из Яндекса."
+        />
 
-            <div className="grid md:grid-cols-3 gap-5">
-              {reviews.map((r) => (
-                <div
-                  key={r.name}
-                  className="p-6 rounded-2xl border border-[#DDEBE8] bg-[#F7FAF9]"
-                >
-                  <div className="flex items-center gap-1 mb-3">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-[#F5C518] text-[#F5C518]" />
-                    ))}
-                  </div>
-                  <p className="text-sm leading-relaxed text-[#0D4D49]">{r.text}</p>
-                  <p className="text-sm font-semibold mt-4">{r.name}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="text-center mt-8">
-              <Button
-                asChild
-                variant="outline"
-                className="rounded-full border-[#DDEBE8]"
-              >
-                <a
-                  href={reviewsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Читать все отзывы в Яндексе
-                </a>
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-12">
+        <section className="bg-white py-12 md:py-16">
+          <div className="container mx-auto max-w-6xl px-4">
+            <h2 className="mb-8 text-center font-heading text-2xl font-bold md:text-3xl">
+              Результаты уборки после ремонта
+            </h2>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
               {galleryImages.map((g, i) => (
                 <img
-                  key={i}
-                src={g}
-                alt="Чистый объект после уборки"
-                loading="lazy"
-                decoding="async"
-                className="w-full aspect-square object-cover rounded-2xl border border-[#DDEBE8]"
-              />
+                  key={g}
+                  src={g}
+                  alt={`Чистый объект после уборки — фото ${i + 1}`}
+                  loading="lazy"
+                  decoding="async"
+                  className="aspect-square w-full rounded-2xl border border-[#DDEBE8] object-cover"
+                />
               ))}
             </div>
           </div>
@@ -562,7 +515,7 @@ const AfterRepairCleaning = () => {
             </p>
             <h3>Почему выбирают «Империю Блеска»</h3>
             <p>
-              Рейтинг компании 5.0 в Яндекс Картах — 48 отзывов реальных клиентов. Работаем
+              Актуальный рейтинг и отзывы компании опубликованы в Яндекс Картах. Работаем
               ежедневно с 8:00 до 23:00, выезд возможен в течение суток. Принимаем оплату
               наличными, картой и безналом, работаем с юридическими лицами по договору.
               Чтобы заказать послеремонтную уборку в Сочи — позвоните по номеру

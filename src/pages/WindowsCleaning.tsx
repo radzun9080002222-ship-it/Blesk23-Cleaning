@@ -12,7 +12,6 @@ import {
   MessageCircle,
   Send,
   CheckCircle2,
-  Star,
   ShieldCheck,
   Sparkles,
   Truck,
@@ -31,6 +30,7 @@ import WindowsCalculator, {
   calcTotal,
 } from '@/components/windows/WindowsCalculator';
 import WindowsLeadForm from '@/components/windows/WindowsLeadForm';
+import YandexReviewsSection from '@/components/YandexReviewsSection';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
 
@@ -60,7 +60,6 @@ const waUrl = 'https://wa.me/79002885255';
 const tgUrl = 'https://t.me/+79002885255';
 const maxUrl =
   'https://max.ru/u/f9LHodD0cOJtMUjlrXWI6y94fo8f8qPlmQdiA50RMF8i1MsNISiZPv1iKWk';
-const reviewsUrl = 'https://yandex.ru/maps/org/21130859655/reviews/';
 
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₽';
 
@@ -120,15 +119,6 @@ const advantages = [
   },
 ];
 
-const reviews = [
-  { name: 'Ольга С.', text: 'Помыли панорамные окна в новой квартире на 14 этаже — после ремонта были в плёнке и цементе. Сделали идеально, без единого развода. Очень довольны!' },
-  { name: 'Игорь М.', text: 'Заказывал генеральную мойку окон и балкона. Приехали вовремя, отработали аккуратно, рамы и подоконники тоже идеально. Цена совпала с расчётом.' },
-  { name: 'Анна П.', text: 'Сняли защитную плёнку с 8 окон после строителей — сами не справились. Мастер всё убрал за 3 часа, стёкла как новые.' },
-  { name: 'Дмитрий К.', text: 'Мыли окна в загородном доме, в том числе высокие глухие — со своей лестницей. Подъехали в день обращения. Рекомендую.' },
-  { name: 'Мария В.', text: 'Очень аккуратные ребята. Не намочили ни рамы, ни подоконник, ни пол. Окна прозрачные — наконец-то видно море :)' },
-  { name: 'Сергей Л.', text: 'Заказывал мойку витрины кафе — сделали утром до открытия. Чисто, быстро, по договору. Будем сотрудничать постоянно.' },
-];
-
 const districts = [
   'Центральный район',
   'Адлер',
@@ -178,7 +168,6 @@ const WindowsCleaning = () => {
     telephone: '+79002885255',
     address: { '@type': 'PostalAddress', addressLocality: 'Сочи', addressCountry: 'RU' },
     priceRange: 'от 400 ₽',
-    aggregateRating: { '@type': 'AggregateRating', ratingValue: '5.0', ratingCount: '55', reviewCount: '48' },
     areaServed: ['Сочи', 'Адлер', 'Красная Поляна'],
     openingHours: 'Mo-Su 08:00-23:00',
   };
@@ -189,7 +178,7 @@ const WindowsCleaning = () => {
         <title>Мойка окон в Сочи — без разводов, от 400 ₽ | Империя Блеска</title>
         <meta
           name="description"
-          content="Профессиональная мойка окон в Сочи: квартиры, дома, панорамное остекление, балконы, после ремонта. Без разводов, выезд в день обращения. Рейтинг 5,0 — 48 отзывов."
+          content="Профессиональная мойка окон в Сочи: квартиры, дома, панорамное остекление, балконы, после ремонта. Без разводов, выезд в день обращения. Реальные отзывы — в Яндекс Картах."
         />
         <link rel="canonical" href="https://www.blesk23.ru/moyka-okon-sochi" />
         <script type="application/ld+json">
@@ -244,8 +233,8 @@ const WindowsCleaning = () => {
 
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
-                  <Star className="w-3.5 h-3.5 fill-[#F5C518] text-[#F5C518]" />
-                  5,0 · 48 отзывов
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Отзывы подтверждены Яндексом
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -431,43 +420,11 @@ const WindowsCleaning = () => {
           </div>
         </section>
 
-        {/* REVIEWS */}
-        <section className="py-16 md:py-24 bg-white border-y border-[#DDEBE8]">
-          <div className="container mx-auto px-4 max-w-6xl">
-            <div className="text-center mb-10">
-              <div className="inline-flex items-center gap-2 mb-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="w-5 h-5 fill-[#F5C518] text-[#F5C518]" />
-                ))}
-              </div>
-              <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                5,0 · 48 отзывов в Яндексе
-              </h2>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {reviews.map((r) => (
-                <div key={r.name} className="p-6 rounded-2xl border border-[#DDEBE8] bg-[#F7FAF9]">
-                  <div className="flex items-center gap-1 mb-3">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-[#F5C518] text-[#F5C518]" />
-                    ))}
-                  </div>
-                  <p className="text-sm leading-relaxed text-[#0D4D49]">{r.text}</p>
-                  <p className="text-sm font-semibold mt-4">{r.name}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="text-center mt-8">
-              <Button asChild variant="outline" className="rounded-full border-[#DDEBE8]">
-                <a href={reviewsUrl} target="_blank" rel="noopener noreferrer">
-                  Читать отзывы в Яндексе
-                </a>
-              </Button>
-            </div>
-          </div>
-        </section>
+        <YandexReviewsSection
+          placement="windows_reviews"
+          title="Отзывы о мойке окон в Яндекс Картах"
+          description="Смотрите актуальные отзывы клиентов о мойке окон, балконов и панорамного остекления. Полная лента загружается напрямую из Яндекса."
+        />
 
         {/* GEO */}
         <section className="py-12 md:py-16">

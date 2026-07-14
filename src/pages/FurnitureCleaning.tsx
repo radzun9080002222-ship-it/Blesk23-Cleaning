@@ -12,7 +12,6 @@ import {
   MessageCircle,
   Send,
   CheckCircle2,
-  Star,
   ShieldCheck,
   Sparkles,
   Truck,
@@ -30,6 +29,7 @@ import FurnitureCalculator, {
   FURNITURE_ITEMS,
 } from '@/components/furniture/FurnitureCalculator';
 import FurnitureLeadForm from '@/components/furniture/FurnitureLeadForm';
+import YandexReviewsSection from '@/components/YandexReviewsSection';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
 
@@ -52,7 +52,6 @@ const waUrl = 'https://wa.me/79002885255';
 const tgUrl = 'https://t.me/+79002885255';
 const maxUrl =
   'https://max.ru/u/f9LHodD0cOJtMUjlrXWI6y94fo8f8qPlmQdiA50RMF8i1MsNISiZPv1iKWk';
-const reviewsUrl = 'https://yandex.ru/maps/org/21130859655/reviews/';
 
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₽';
 
@@ -108,33 +107,6 @@ const advantages = [
     icon: BadgeCheck,
     t: 'Гарантия результата',
     d: 'Не устроило — бесплатно доработаем по тому же чек-листу.',
-  },
-];
-
-const reviews = [
-  {
-    name: 'Анна К.',
-    text: 'Чистили угловой диван — пятна от кофе и следы от животных. Результат — как из магазина. Высох за 4 часа, никаких запахов химии. Спасибо!',
-  },
-  {
-    name: 'Дмитрий П.',
-    text: 'Заказывал химчистку матраса и двух кресел. Приехали вовремя, всё аккуратно, мебель не двигали по квартире. Цена совпала с расчётом.',
-  },
-  {
-    name: 'Мария В.',
-    text: 'Думала, диван уже не спасти после 5 лет с детьми. Девочки сделали невозможное — выглядит как новый. Рекомендую всем в Сочи.',
-  },
-  {
-    name: 'Игорь Ш.',
-    text: 'Чистили салон авто — два детских автокресла. Запах табака ушёл полностью. Работают чисто, без разводов.',
-  },
-  {
-    name: 'Ольга М.',
-    text: 'Заказывала химчистку ковра и штор на дому. Очень довольна — приехали со своим оборудованием, сделали за 2 часа. Цена честная.',
-  },
-  {
-    name: 'Сергей Л.',
-    text: 'Профессионалы. Объяснили, почему именно экстракторный метод, показали грязную воду из мебели. Реально работает.',
   },
 ];
 
@@ -201,12 +173,6 @@ const FurnitureCleaning = () => {
       addressCountry: 'RU',
     },
     priceRange: 'от 400 ₽',
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '5.0',
-      ratingCount: '55',
-      reviewCount: '48',
-    },
     areaServed: ['Сочи', 'Адлер', 'Красная Поляна'],
     openingHours: 'Mo-Su 08:00-23:00',
   };
@@ -219,7 +185,7 @@ const FurnitureCleaning = () => {
         </title>
         <meta
           name="description"
-          content="Химчистка диванов, кресел, матрасов, ковров и штор в Сочи на дому. Экстракторный метод, сушка 3–6 часов. Безопасно для детей и животных. Рейтинг 5,0 — 48 отзывов."
+          content="Химчистка диванов, кресел, матрасов, ковров и штор в Сочи на дому. Экстракторный метод, сушка 3–6 часов. Безопасно для детей и животных. Реальные отзывы — в Яндекс Картах."
         />
         <link
           rel="canonical"
@@ -289,8 +255,8 @@ const FurnitureCleaning = () => {
 
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
-                  <Star className="w-3.5 h-3.5 fill-[#F5C518] text-[#F5C518]" />
-                  5,0 · 48 отзывов в Яндексе
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Отзывы подтверждены Яндексом
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs md:text-sm bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -580,58 +546,11 @@ const FurnitureCleaning = () => {
           </div>
         </section>
 
-        {/* REVIEWS */}
-        <section className="py-16 md:py-24">
-          <div className="container mx-auto px-4 max-w-6xl">
-            <div className="text-center mb-10">
-              <div className="inline-flex items-center gap-2 mb-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    className="w-5 h-5 fill-[#F5C518] text-[#F5C518]"
-                  />
-                ))}
-              </div>
-              <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                5,0 · 48 отзывов в Яндексе
-              </h2>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {reviews.map((r) => (
-                <div
-                  key={r.name}
-                  className="p-6 rounded-2xl border border-[#DDEBE8] bg-white"
-                >
-                  <div className="flex items-center gap-1 mb-3">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className="w-4 h-4 fill-[#F5C518] text-[#F5C518]"
-                      />
-                    ))}
-                  </div>
-                  <p className="text-sm leading-relaxed text-[#0D4D49]">
-                    {r.text}
-                  </p>
-                  <p className="text-sm font-semibold mt-4">{r.name}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="text-center mt-8">
-              <Button
-                asChild
-                variant="outline"
-                className="rounded-full border-[#DDEBE8]"
-              >
-                <a href={reviewsUrl} target="_blank" rel="noopener noreferrer">
-                  Читать отзывы в Яндексе
-                </a>
-              </Button>
-            </div>
-          </div>
-        </section>
+        <YandexReviewsSection
+          placement="furniture_reviews"
+          title="Отзывы о химчистке мебели в Яндекс Картах"
+          description="Смотрите актуальные отзывы клиентов о химчистке диванов, матрасов, кресел и ковров. Полная лента загружается напрямую из Яндекса."
+        />
 
         {/* GEO */}
         <section className="py-12 md:py-16 bg-white border-y border-[#DDEBE8]">

@@ -11,8 +11,7 @@ import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
-import RepairCalculator from '@/components/repair/RepairCalculator';
-import RepairLeadForm from '@/components/repair/RepairLeadForm';
+import PublicCleaningCalculator from '@/components/calculator/PublicCleaningCalculator';
 import YandexReviewsSection from '@/components/YandexReviewsSection';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
@@ -229,24 +228,7 @@ const AfterRepairCleaning = () => {
         </section>
 
         {/* CALCULATOR + FORM */}
-        <section id="calc" className="py-16 md:py-24">
-          <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center mb-10">
-              <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                Узнайте цену за 2 минуты
-              </h2>
-              <p className="text-muted-foreground mt-3">
-                Фиксируем стоимость до начала работ — цена не изменится, даже если уборка
-                займёт дольше.
-              </p>
-            </div>
-
-            <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6 max-w-6xl mx-auto">
-              <RepairCalculator />
-              <RepairLeadForm />
-            </div>
-          </div>
-        </section>
+        <PublicCleaningCalculator mode="repair" sectionId="calc" />
 
         {/* BEFORE / AFTER */}
         <section className="py-16 md:py-24 bg-white border-y border-[#DDEBE8]">

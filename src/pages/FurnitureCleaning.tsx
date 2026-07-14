@@ -27,11 +27,13 @@ import Footer from '@/components/Footer';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
 import FurnitureCalculator, {
   FURNITURE_ITEMS,
+  FURNITURE_MINIMUM,
 } from '@/components/furniture/FurnitureCalculator';
 import FurnitureLeadForm from '@/components/furniture/FurnitureLeadForm';
 import YandexReviewsSection from '@/components/YandexReviewsSection';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
+import { usePricingConfig } from '@/hooks/usePricingConfig';
 
 const heroImg = { url: '/images/himchistka/hero.webp' };
 const heroVideo = { url: '/images/himchistka/video-hero.mp4' };
@@ -133,22 +135,30 @@ const faqExtra = [
 const FurnitureCleaning = () => {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const formRef = useRef<HTMLDivElement>(null);
+  const pricing = usePricingConfig();
+
+  const furnitureItems = useMemo(
+    () => FURNITURE_ITEMS.map((item) => ({ ...item, price: pricing.dry[item.id] || item.price })),
+    [pricing]
+  );
 
   const total = useMemo(
-    () =>
-      FURNITURE_ITEMS.reduce(
+    () => {
+      const rawTotal = furnitureItems.reduce(
         (s, it) => s + (counts[it.id] || 0) * it.price,
         0
-      ),
-    [counts]
+      );
+      return rawTotal > 0 ? Math.max(rawTotal, FURNITURE_MINIMUM) : 0;
+    },
+    [counts, furnitureItems]
   );
 
   const composition = useMemo(
     () =>
-      FURNITURE_ITEMS.filter((it) => (counts[it.id] || 0) > 0)
+      furnitureItems.filter((it) => (counts[it.id] || 0) > 0)
         .map((it) => `${it.name} × ${counts[it.id]}`)
         .join('; '),
-    [counts]
+    [counts, furnitureItems]
   );
 
   const scrollToForm = () => {
@@ -343,10 +353,10 @@ const FurnitureCleaning = () => {
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto text-center mb-10">
               <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                Узнайте цену за 2 минуты
+                Сколько стоит химчистка моей мебели?
               </h2>
               <p className="text-muted-foreground mt-3">
-                Фиксируем стоимость до начала работ.
+                Выберите мебель — рассчитаем и зафиксируем сумму до выезда. Минимальный заказ 4 000 ₽.
               </p>
             </div>
 
@@ -359,7 +369,7 @@ const FurnitureCleaning = () => {
               <div ref={formRef}>
                 <FurnitureLeadForm
                   composition={composition}
-                  totalLabel={total > 0 ? `от ${fmt(total)}` : ''}
+                  total={total}
                 />
               </div>
             </div>

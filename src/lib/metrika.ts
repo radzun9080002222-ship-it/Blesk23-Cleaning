@@ -21,6 +21,7 @@ export type MetrikaGoal =
   | "form_start"
   | "form_submit"
   | "form_error"
+  | "calculator_submit"
   | "pricing_cta_click"
   | "contact_scroll"
   | "service_click"

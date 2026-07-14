@@ -34,6 +34,7 @@ const BLESK23_CONFIG = Object.freeze({
     { target: 'review_card_click', name: 'Клик по выбранному отзыву' },
     { target: 'reviews_all_click', name: 'Переход ко всем отзывам' },
     { target: 'review_create_click', name: 'Переход к публикации отзыва' },
+    { target: 'calculator_submit', name: 'Завершение калькулятора' },
   ],
 });
 
@@ -150,7 +151,7 @@ function syncRow_(sheet, rowNumber, force) {
     }
 
     let phoneClickMatch = null;
-    if (parsed.attribution.event_kind === 'internal_calc') {
+    if (isInternalManagerCalc_(parsed.attribution)) {
       phoneClickMatch = findRecentPhoneClick_(sheet, rowNumber, headers);
       if (phoneClickMatch && phoneClickMatch.rowNumber) {
         parsed.attribution = Object.assign(
@@ -255,8 +256,22 @@ function inferSource_(attribution) {
   if (source.includes('google')) return 'Google';
   if (source) return `Сайт / ${attribution.utm_source}`;
   if (attribution.yclid) return 'Яндекс Директ';
-  if (attribution.event_kind === 'internal_calc') return 'Телефон / источник не определён';
+  if (isInternalManagerCalc_(attribution)) return 'Телефон / источник не определён';
   return 'Сайт / прямой переход';
+}
+
+function isInternalManagerCalc_(attribution) {
+  return (
+    String(attribution.event_kind || '') === 'internal_calc' &&
+    !String(attribution.calc_origin || '').includes('public_calculator')
+  );
+}
+
+function isPublicCalculatorLead_(leadData) {
+  return (
+    String(leadData.eventKind || '') === 'internal_calc' &&
+    String((leadData.attribution || {}).calc_origin || '').includes('public_calculator')
+  );
 }
 
 function isTrackingClickEvent_(eventKind) {
@@ -418,11 +433,93 @@ function createOrMergeLead_(leadData, contactData) {
     }
   }
 
+  if (isPublicCalculatorLead_(leadData)) {
+    return createPublicCalculatorUnsorted_(leadData, contactData);
+  }
+
   return createOrMergeWithDuplicationControl_(
     leadData,
     contactData,
     firstStage
   );
+}
+
+function createPublicCalculatorUnsorted_(leadData, contactData) {
+  const phone = normalizePhone_(contactData.phone);
+  if (!phone) throw new Error('Некорректный телефон в заявке.');
+
+  const leadFieldMap = getCustomFieldMap_('leads');
+  const now = Math.floor(Date.now() / 1000);
+  const requestId = `calc_${now}_${phone.slice(-4)}_${Utilities.getUuid().slice(0, 8)}`;
+  const formPage =
+    leadData.attribution.current_page ||
+    leadData.attribution.landing_page ||
+    'https://www.blesk23.ru/';
+  const contactFields = [
+    {
+      field_code: 'PHONE',
+      values: [{ value: phone, enum_code: 'WORK' }],
+    },
+  ];
+  if (contactData.email) {
+    contactFields.push({
+      field_code: 'EMAIL',
+      values: [{ value: contactData.email, enum_code: 'WORK' }],
+    });
+  }
+
+  const lead = {
+    name: leadData.leadName || `Калькулятор — ${leadData.service}`,
+    price: leadData.price || 0,
+    responsible_user_id: BLESK23_CONFIG.responsibleUserId,
+    custom_fields_values: buildLeadFieldValues_(leadData, leadFieldMap, null),
+  };
+
+  const payload = [
+    {
+      request_id: requestId,
+      source_name: BLESK23_CONFIG.sourceName,
+      source_uid: requestId,
+      pipeline_id: BLESK23_CONFIG.pipelineId,
+      created_at: now,
+      _embedded: {
+        leads: [lead],
+        contacts: [
+          {
+            name: contactData.name,
+            responsible_user_id: BLESK23_CONFIG.responsibleUserId,
+            custom_fields_values: contactFields,
+          },
+        ],
+      },
+      metadata: {
+        form_id: String(leadData.attribution.calc_origin || 'public_calculator'),
+        form_name: 'Калькулятор стоимости уборки',
+        form_page: formPage,
+        form_sent_at: now,
+        referer: leadData.attribution.referrer || leadData.attribution.utm_referer || '',
+        visitor_uid: leadData.attribution.metrika_client_id || null,
+      },
+    },
+  ];
+
+  const response = amoRequest_('/api/v4/leads/unsorted/forms', 'post', payload);
+  const unsorted =
+    response && response._embedded && response._embedded.unsorted
+      ? response._embedded.unsorted[0]
+      : null;
+  const embedded = unsorted && unsorted._embedded ? unsorted._embedded : {};
+  const createdLead = embedded.leads && embedded.leads[0];
+  const createdContact = embedded.contacts && embedded.contacts[0];
+  if (!createdLead || !createdLead.id) {
+    throw new Error('amoCRM не вернула сделку в Неразобранном.');
+  }
+
+  return {
+    lead: createdLead,
+    contact: createdContact || null,
+    action: 'created_unsorted',
+  };
 }
 
 function createOrMergeWithDuplicationControl_(

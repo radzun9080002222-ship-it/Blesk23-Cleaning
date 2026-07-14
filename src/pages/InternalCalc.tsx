@@ -6,6 +6,13 @@ import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send, TrendingUp, 
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { submitGoogleLead } from '@/lib/googleForms';
+import {
+  mergePricing,
+  PRICING_DEFAULTS,
+  rateForPricing,
+  type CleaningType,
+  type PricingConfig,
+} from '@/lib/pricing';
 
 async function sendCalcToLeadPipeline(payload: {
   contactName: string;
@@ -27,77 +34,6 @@ async function sendCalcToLeadPipeline(payload: {
     message: `${payload.note}\n\nАтрибуция:\n${technical}`,
   });
 }
-
-/* ====================== ПРАЙС ====================== */
-
-type CleaningType = 'wet' | 'general' | 'repair' | 'all_inclusive';
-
-/* ====================== ОБЩИЕ ЦЕНЫ (PRICING) ====================== */
-// Дефолтные цены калькулятора. Хранятся в Supabase в таблице
-// pricing_config (id='default'), синхронизированы между всеми менеджерами.
-// Если Supabase недоступен — калькулятор работает на этих дефолтах.
-export const PRICING_DEFAULTS = {
-  minOrder: 6000,
-  rates: {
-    wet:     [ {upTo:60,price:160},{upTo:70,price:150},{upTo:80,price:140},{upTo:90,price:130},{upTo:99,price:120},{upTo:null as number|null,price:110} ],
-    general: [ {upTo:60,price:280},{upTo:80,price:270},{upTo:99,price:260},{upTo:null as number|null,price:250} ],
-    repair:  [ {upTo:99,price:300},{upTo:null as number|null,price:280} ],
-    allInclusive: 450,
-  },
-  windows: {
-    panoramic:   { usual:1200, repair:2000 },
-    standard:    { usual:500,  repair:750  },
-    mini:        { usual:400,  repair:500  },
-    balconyDoor: { usual:1200, repair:1500 },
-  },
-  extras: {
-    fridge:900, fridge2:1800, oven:900, microwave:500, hood:700, kitchen_cabinet:250,
-    curtains_wash:1500, curtains_iron:1000, ironing:800, linen:500,
-    chandelier:500, chandelier_big:1500, ac:500, seams:3000,
-  } as Record<string, number>,
-  dry: {
-    sofa2:3500, sofa3:5000, sofa_corner:7500, sofa_slide:800, pillow:400, mattress:2800,
-    armchair:1200, chair:450, headboard:1200, pouf:550, bench:1200, carseat:1500, stroller:2500,
-  } as Record<string, number>,
-  wardrobe: [2000, 2500] as number[],
-  special: { bathroom:6000, mold:1500, polyana:2000 },
-};
-
-export type PricingConfig = typeof PRICING_DEFAULTS;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-
-// Глубокое слияние data из Supabase поверх дефолтов (на случай новых полей).
-const mergePricingValue = (fallback: unknown, saved: unknown): unknown => {
-  if (Array.isArray(fallback) && Array.isArray(saved)) {
-    return fallback.map((item, index) =>
-      saved[index] == null ? item : mergePricingValue(item, saved[index])
-    );
-  }
-
-  if (isRecord(fallback) && isRecord(saved)) {
-    const result: Record<string, unknown> = { ...fallback };
-    Object.entries(saved).forEach(([key, value]) => {
-      if (key in fallback) result[key] = mergePricingValue(fallback[key], value);
-    });
-    return result;
-  }
-
-  return typeof saved === 'number' ? saved : fallback;
-};
-
-const mergePricing = (saved: unknown): PricingConfig =>
-  mergePricingValue(PRICING_DEFAULTS, saved) as PricingConfig;
-
-const rateForPricing = (pricing: PricingConfig, type: CleaningType, area: number): number => {
-  if (type === 'all_inclusive') return pricing.rates.allInclusive;
-  const brackets = pricing.rates[type as 'wet' | 'general' | 'repair'];
-  for (const b of brackets) {
-    if (b.upTo == null || area <= b.upTo) return b.price;
-  }
-  return brackets[brackets.length - 1].price;
-};
 
 const rateBracketLabel = (upTo: number | null, idx: number, arr: { upTo: number | null }[]): string => {
   if (upTo == null) {

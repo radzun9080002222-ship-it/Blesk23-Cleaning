@@ -47,10 +47,10 @@ const formatPhone = (raw: string) => {
 
 type Props = {
   composition?: string;
-  totalLabel?: string;
+  total?: number;
 };
 
-const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
+const FurnitureLeadForm = ({ composition = '', total = 0 }: Props) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [sent, setSent] = useState(false);
@@ -59,7 +59,7 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
   const [consent, setConsent] = useState(false);
 
   const digits = phone.replace(/\D/g, '');
-  const valid = name.trim().length >= 2 && digits.length === 11 && consent;
+  const valid = name.trim().length >= 2 && digits.length === 11 && consent && total > 0;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,12 +67,26 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
     try {
       setBusy(true);
       setError(false);
-      const comment =
-        `Заявка с лендинга «Химчистка мебели» (/himchistka-mebeli-sochi). ` +
-        (totalLabel ? `Расчёт: ${totalLabel}. ` : '') +
-        (composition ? `Состав: ${composition}` : '');
-      await send({ name: name.trim(), phone: phone.trim(), comment: appendLeadTracking(comment) });
-      reachGoal('form_submit', { form: 'furniture_lead_form' });
+      const customerComment =
+        `Заявка из калькулятора «Химчистка мебели».\n` +
+        `Состав: ${composition}.\n` +
+        `ИТОГО: ${total.toLocaleString('ru-RU')} ₽.\n` +
+        'Цена рассчитана и зафиксирована до выезда мастера.';
+      const technical = [
+        'event_kind: internal_calc',
+        'calc_origin: furniture_public_calculator',
+        `calc_price: ${total}`,
+        'calc_lead_name: Калькулятор: Химчистка мебели',
+        'calc_type: furniture',
+        `calc_created_at: ${new Date().toISOString()}`,
+      ].join('\n');
+      await send({
+        name: name.trim(),
+        phone: phone.trim(),
+        comment: `${appendLeadTracking(customerComment)}\n${technical}`,
+      });
+      reachGoal('form_submit', { form: 'furniture_lead_form', calc_price: total });
+      reachGoal('calculator_submit', { form: 'furniture_lead_form', calc_price: total });
       setSent(true);
     } catch {
       reachGoal('form_error', { form: 'furniture_lead_form' });
@@ -90,7 +104,7 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
           Спасибо!
         </h3>
         <p className="text-muted-foreground">
-          Перезвоним за 2 минуты, назовём точную цену и время.
+          Расчёт уже у Ферузы. Свяжемся в течение 5 минут и согласуем время.
         </p>
       </div>
     );
@@ -104,10 +118,10 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
     >
       <div>
         <h3 className="font-heading text-xl font-bold text-[#0D4D49]">
-          Получить точный расчёт
+          Зафиксировать цену
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Перезвоним за 2 минуты, назовём точную цену и время.
+          Оставьте имя и телефон — свяжемся в течение 5 минут.
         </p>
       </div>
 
@@ -141,8 +155,12 @@ const FurnitureLeadForm = ({ composition = '', totalLabel = '' }: Props) => {
         disabled={!valid || busy}
         className="w-full h-12 rounded-xl hero-gradient text-white font-semibold"
       >
-        {busy ? 'Отправляем…' : 'Получить расчёт'}
+        {busy ? 'Отправляем…' : 'Отправить заявку'}
       </Button>
+
+      <p className="text-xs text-center text-muted-foreground">
+        Зафиксируем рассчитанную цену и свяжемся в течение 5 минут.
+      </p>
 
       {error && (
         <p className="text-xs text-destructive text-center">

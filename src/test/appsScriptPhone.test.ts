@@ -7,6 +7,8 @@ type AppsScriptPhoneHelpers = {
   normalizePhone_: (value: unknown) => string;
   extractRussianPhones_: (text: unknown) => string[];
   collectWazzupMessageEvents_: (payload: unknown) => Array<Record<string, unknown>>;
+  isInternalManagerCalc_: (attribution: Record<string, unknown>) => boolean;
+  isPublicCalculatorLead_: (leadData: Record<string, unknown>) => boolean;
 };
 
 const loadPhoneHelpers = (): AppsScriptPhoneHelpers => {
@@ -14,15 +16,37 @@ const loadPhoneHelpers = (): AppsScriptPhoneHelpers => {
     resolve(process.cwd(), 'integrations/google-apps-script/Code.gs'),
     'utf8'
   );
-  const exposed = `${source}\nthis.__phoneHelpers = { normalizePhone_, extractRussianPhones_, collectWazzupMessageEvents_ };`;
+  const exposed = `${source}\nthis.__phoneHelpers = { normalizePhone_, extractRussianPhones_, collectWazzupMessageEvents_, isInternalManagerCalc_, isPublicCalculatorLead_ };`;
   const context: Record<string, unknown> = {};
   runInNewContext(exposed, context);
   return context.__phoneHelpers as AppsScriptPhoneHelpers;
 };
 
 describe('Apps Script Russian phone parsing', () => {
-  const { normalizePhone_, extractRussianPhones_, collectWazzupMessageEvents_ } =
+  const {
+    normalizePhone_,
+    extractRussianPhones_,
+    collectWazzupMessageEvents_,
+    isInternalManagerCalc_,
+    isPublicCalculatorLead_,
+  } =
     loadPhoneHelpers();
+
+  it('separates the manager calculator from public calculator submissions', () => {
+    expect(isInternalManagerCalc_({ event_kind: 'internal_calc' })).toBe(true);
+    expect(
+      isInternalManagerCalc_({
+        event_kind: 'internal_calc',
+        calc_origin: 'main_public_calculator',
+      })
+    ).toBe(false);
+    expect(
+      isPublicCalculatorLead_({
+        eventKind: 'internal_calc',
+        attribution: { calc_origin: 'repair_public_calculator' },
+      })
+    ).toBe(true);
+  });
 
   it.each([
     ['+7 960 966-61-61', '+79609666161'],

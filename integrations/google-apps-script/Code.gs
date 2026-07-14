@@ -11,6 +11,8 @@ const BLESK23_CONFIG = Object.freeze({
   metrikaCounterId: 107216997,
   metrikaSyncMinutes: 15,
   metrikaLookbackDays: 21,
+  wazzupWebAppUrl:
+    'https://script.google.com/macros/s/AKfycbyKi9Z6HyE0Etai-I0tmpBgsrH3iLgnN0J7BhrbjOudlk-YQ9gVOJfglEbgmL1BSp6TMQ/exec',
   metrikaQueueSheetName: 'Метрика — конверсии',
   sourceExternalId: 'blesk23_google_forms_2026',
   sourceName: 'Blesk23 — формы сайта',
@@ -1662,6 +1664,61 @@ function setupWazzupWebhookSecret() {
   };
 }
 
+function getWazzupUserApiWebhook() {
+  const result = wazzupUserApiRequest_('/v3/webhooks', 'get');
+  console.log(JSON.stringify(result));
+  return result;
+}
+
+function setupWazzupUserApiWebhook() {
+  const secret = setupWazzupWebhookSecret().secret;
+  const separator = BLESK23_CONFIG.wazzupWebAppUrl.indexOf('?') === -1 ? '?' : '&';
+  const webhooksUri =
+    `${BLESK23_CONFIG.wazzupWebAppUrl}${separator}secret=${encodeURIComponent(secret)}`;
+  const result = wazzupUserApiRequest_('/v3/webhooks', 'patch', {
+    webhooksUri,
+    subscriptions: {
+      messagesAndStatuses: true,
+      contactsAndDealsCreation: false,
+      channelsUpdates: false,
+      templateStatus: false,
+    },
+  });
+  console.log(JSON.stringify({ ok: true, messagesAndStatuses: true }));
+  return result;
+}
+
+function wazzupUserApiRequest_(path, method, payload) {
+  const token = PropertiesService.getScriptProperties().getProperty('WAZZUP_API_KEY');
+  if (!token) {
+    throw new Error('В свойствах скрипта не задан WAZZUP_API_KEY.');
+  }
+  const options = {
+    method: method || 'get',
+    muteHttpExceptions: true,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  };
+  if (payload !== undefined) options.payload = JSON.stringify(payload);
+  const response = UrlFetchApp.fetch(`https://api.wazzup24.com${path}`, options);
+  const status = response.getResponseCode();
+  const body = response.getContentText();
+  let parsed = {};
+  if (body) {
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      parsed = { response: body };
+    }
+  }
+  if (status < 200 || status >= 300) {
+    throw new Error(`Wazzup API ${status}: ${body.slice(0, 1000)}`);
+  }
+  return parsed;
+}
+
 function doPost(event) {
   try {
     const expectedSecret = PropertiesService.getScriptProperties().getProperty(
@@ -1690,6 +1747,28 @@ function collectWazzupMessageEvents_(payload) {
   const messages = [];
   const seen = new Set();
 
+  const append = (message) => {
+    const messageId = String(message && message.message_id || '');
+    if (!messageId || seen.has(messageId)) return;
+    seen.add(messageId);
+    messages.push(message);
+  };
+
+  const normalizeUserApiMessage = (message) => ({
+    message_id: String(message.messageId || ''),
+    channel_id: String(message.channelId || ''),
+    direction: message.isEcho ? 'outbound' : 'inbound',
+    status: String(message.status || ''),
+    recipient: {
+      chat_id: String(message.chatId || ''),
+      username: String(message.contact && message.contact.username || ''),
+      phone: String(message.contact && message.contact.phone || ''),
+      chat_type: String(message.chatType || ''),
+      name: String(message.contact && message.contact.name || ''),
+    },
+    text: String(message.text || ''),
+  });
+
   const visit = (value) => {
     if (!value) return;
     if (Array.isArray(value)) {
@@ -1698,12 +1777,9 @@ function collectWazzupMessageEvents_(payload) {
     }
     if (typeof value !== 'object') return;
 
-    if (value.message_id && value.direction && value.recipient) {
-      const messageId = String(value.message_id);
-      if (!seen.has(messageId)) {
-        seen.add(messageId);
-        messages.push(value);
-      }
+    if (value.message_id && value.direction && value.recipient) append(value);
+    if (Array.isArray(value.messages)) {
+      value.messages.forEach((message) => append(normalizeUserApiMessage(message)));
     }
 
     if (value.data) visit(value.data);
@@ -1719,7 +1795,11 @@ function handleWazzupMessageEvent_(message) {
     return { messageId: String(message.message_id || ''), status: 'ignored_outbound' };
   }
 
-  const phones = extractRussianPhones_(message.text || '');
+  const textPhones = extractRussianPhones_(message.text || '');
+  const recipientPhone = normalizePhone_(message.recipient && message.recipient.phone || '');
+  const phones = textPhones.length > 0
+    ? textPhones
+    : (recipientPhone ? [recipientPhone] : []);
   if (phones.length === 0) {
     return { messageId: String(message.message_id || ''), status: 'no_phone' };
   }

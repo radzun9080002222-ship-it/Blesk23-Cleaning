@@ -43,6 +43,7 @@
 AMO_LONG_LIVED_TOKEN=<токен приватной интеграции amoCRM>
 METRIKA_OAUTH_TOKEN=<OAuth-токен с правами metrika:read и metrika:offline_data; для создания целей дополнительно metrika:write>
 WAZZUP_WEBHOOK_SECRET=<случайный секрет в URL вебхука; создаётся setupWazzupWebhookSecret()>
+WAZZUP_API_KEY=<ключ из Wazzup → Интеграция с CRM → Дополнительно>
 ```
 
 После установки токена один раз запускается `setupIntegration()`. Функция проверяет соединение и создаёт установленный триггер `handleFormSubmit`.
@@ -53,7 +54,7 @@ WAZZUP_WEBHOOK_SECRET=<случайный секрет в URL вебхука; с
 
 После добавления интерактивных блоков сайта и выдачи токену права `metrika:write` запускается `setupSiteEngagementGoals()`. Функция через официальный API Метрики создаёт только отсутствующие JS-цели и не дублирует уже настроенные. Для блока отзывов это `reviews_open`, `review_card_click`, `reviews_all_click` и `review_create_click`.
 
-Для распознавания телефона, который клиент присылает в MAX/Telegram/WhatsApp, проект Apps Script публикуется как Web App с выполнением от владельца. Затем запускается `setupWazzupWebhookSecret()`, а в Wazzup создаётся подписка `message.add` на URL Web App с параметром `?secret=<WAZZUP_WEBHOOK_SECRET>`. Для создания подписки Wazzup требует `client_access_token`. Повторный номер не дублируется: `8XXXXXXXXXX`, `7XXXXXXXXXX` и `+7XXXXXXXXXX` нормализуются к одному значению `+7XXXXXXXXXX`.
+Для распознавания телефона, который клиент присылает в MAX/Telegram/WhatsApp, проект Apps Script публикуется как Web App с выполнением от владельца. Затем в свойства добавляется `WAZZUP_API_KEY` и один раз запускается `setupWazzupUserApiWebhook()`. Функция подписывает пользовательский API v3 на входящие сообщения и статусы, а URL защищает параметром `WAZZUP_WEBHOOK_SECRET`. Обработчик понимает как формат пользовательского API v3, так и партнёрского API v2. Повторный номер не дублируется: `8XXXXXXXXXX`, `7XXXXXXXXXX` и `+7XXXXXXXXXX` нормализуются к одному значению `+7XXXXXXXXXX`.
 
 Supabase для атрибуции не требуется: браузер хранит first-touch параметры 90 дней в `localStorage`, а перед переходом в мессенджер сразу отправляет их в техническую строку Google Forms. Таблица остаётся серверным журналом кликов; amoCRM получает атрибуцию после однозначного сопоставления клика и беседы.
 

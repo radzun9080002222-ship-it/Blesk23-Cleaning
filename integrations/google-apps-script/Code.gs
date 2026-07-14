@@ -26,6 +26,12 @@ const BLESK23_CONFIG = Object.freeze({
     { target: 'paid_order', name: 'Оплаченный заказ (amoCRM)' },
     { target: 'paid_new_client', name: 'Оплаченный новый клиент (amoCRM)' },
   ],
+  siteEngagementGoals: [
+    { target: 'reviews_open', name: 'Просмотр блока отзывов' },
+    { target: 'review_card_click', name: 'Клик по выбранному отзыву' },
+    { target: 'reviews_all_click', name: 'Переход ко всем отзывам' },
+    { target: 'review_create_click', name: 'Переход к публикации отзыва' },
+  ],
 });
 
 const ATTRIBUTION_HEADER_MAP = Object.freeze({
@@ -976,6 +982,43 @@ function testMetrikaConnection() {
     metrikaCounterName: counter.counter && counter.counter.name,
     site: counter.counter && counter.counter.site,
   };
+}
+
+function setupSiteEngagementGoals() {
+  requireMetrikaToken_();
+  const path = `/management/v1/counter/${BLESK23_CONFIG.metrikaCounterId}/goals`;
+  const response = metrikaRequest_(path, 'get');
+  const identifiers = new Set();
+
+  (response.goals || []).forEach((goal) => {
+    (goal.conditions || []).forEach((condition) => {
+      if (condition.url) identifiers.add(String(condition.url));
+    });
+  });
+
+  const result = { created: [], existing: [] };
+  BLESK23_CONFIG.siteEngagementGoals.forEach((goal) => {
+    if (identifiers.has(goal.target)) {
+      result.existing.push(goal.target);
+      return;
+    }
+
+    const created = metrikaRequest_(path, 'post', {
+      goal: {
+        name: goal.name,
+        type: 'action',
+        conditions: [{ type: 'exact', url: goal.target }],
+      },
+    });
+    result.created.push({
+      target: goal.target,
+      id: created.goal && created.goal.id,
+    });
+    identifiers.add(goal.target);
+  });
+
+  console.log(JSON.stringify(result));
+  return result;
 }
 
 function previewMetrikaConversions() {

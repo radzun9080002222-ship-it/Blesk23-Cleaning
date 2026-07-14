@@ -20,7 +20,11 @@ export type MetrikaGoal =
   | "form_error"
   | "pricing_cta_click"
   | "contact_scroll"
-  | "service_click";
+  | "service_click"
+  | "reviews_open"
+  | "review_card_click"
+  | "reviews_all_click"
+  | "review_create_click";
 
 export const reachGoal = (goal: MetrikaGoal, params?: Record<string, unknown>) => {
   if (typeof window !== "undefined" && typeof window.ym === "function") {

@@ -407,6 +407,32 @@ function createOrMergeLead_(leadData, contactData) {
   const firstStage = getFirstStage_(pipeline);
   let contact = findContactByPhone_(contactData.phone);
 
+  // Контакт свежего чата иногда ещё не попадает в обычный поиск amoCRM.
+  // Для калькулятора дополнительно просматриваем контакты в Неразобранном,
+  // чтобы форма с тем же телефоном приняла и дополнила чат, а не создала дубль.
+  if (!contact && leadData.eventKind === 'internal_calc') {
+    const unsortedMatch = findUnsortedByPhone_(contactData.phone);
+    if (unsortedMatch) {
+      const accepted = amoRequest_(
+        `/api/v4/leads/unsorted/${unsortedMatch.unsorted.uid}/accept`,
+        'post',
+        {
+          user_id: BLESK23_CONFIG.responsibleUserId,
+          status_id: firstStage.id,
+        }
+      );
+      const acceptedLeadId = accepted._embedded.leads[0].id;
+      const acceptedLead = amoRequest_(`/api/v4/leads/${acceptedLeadId}`, 'get');
+      const lead = updateExistingLead_(acceptedLead, leadData);
+      linkContactToLeadIfNeeded_(lead.id, unsortedMatch.contact.id);
+      return {
+        lead,
+        contact: unsortedMatch.contact,
+        action: 'merged_unsorted_by_phone',
+      };
+    }
+  }
+
   if (contact) {
     const unsorted = findUnsortedForContact_(contact.id);
     if (unsorted) {
@@ -613,6 +639,44 @@ function findUnsortedForContact_(contactId) {
       )
     ) || null
   );
+}
+
+function findUnsortedByPhone_(phoneValue) {
+  const phone = normalizePhone_(phoneValue);
+  if (!phone) return null;
+
+  const result = amoRequest_(
+    `/api/v4/leads/unsorted?filter[pipeline_id]=${BLESK23_CONFIG.pipelineId}&limit=250&order[created_at]=desc`,
+    'get'
+  );
+  const unsorted = result && result._embedded ? result._embedded.unsorted || [] : [];
+  const contactToUnsorted = {};
+  const contactIds = [];
+
+  unsorted.forEach((item) => {
+    ((item._embedded && item._embedded.contacts) || []).forEach((embeddedContact) => {
+      const id = Number(embeddedContact.id);
+      if (!id || contactToUnsorted[id]) return;
+      contactToUnsorted[id] = item;
+      contactIds.push(id);
+    });
+  });
+
+  for (let offset = 0; offset < contactIds.length; offset += 50) {
+    const chunk = contactIds.slice(offset, offset + 50);
+    const filter = chunk.map((id) => `filter[id][]=${id}`).join('&');
+    const contactsResult = amoRequest_(`/api/v4/contacts?${filter}&limit=50`, 'get');
+    const contacts =
+      contactsResult && contactsResult._embedded
+        ? contactsResult._embedded.contacts || []
+        : [];
+    const contact = contacts.find((candidate) => contactHasPhone_(candidate, phone));
+    if (contact) {
+      return { contact, unsorted: contactToUnsorted[contact.id] };
+    }
+  }
+
+  return null;
 }
 
 function findUnsortedForLead_(leadId) {

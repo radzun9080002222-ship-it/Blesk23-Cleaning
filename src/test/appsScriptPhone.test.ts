@@ -9,6 +9,9 @@ type AppsScriptPhoneHelpers = {
   collectWazzupMessageEvents_: (payload: unknown) => Array<Record<string, unknown>>;
   isInternalManagerCalc_: (attribution: Record<string, unknown>) => boolean;
   isPublicCalculatorLead_: (leadData: Record<string, unknown>) => boolean;
+  inferService_: (message: string, attribution: Record<string, unknown>) => string;
+  inferCleaningAddress_: (message: string, attribution: Record<string, unknown>) => string;
+  inferCleaningTimestamp_: (message: string, attribution: Record<string, unknown>) => number;
 };
 
 const loadPhoneHelpers = (): AppsScriptPhoneHelpers => {
@@ -16,7 +19,7 @@ const loadPhoneHelpers = (): AppsScriptPhoneHelpers => {
     resolve(process.cwd(), 'integrations/google-apps-script/Code.gs'),
     'utf8'
   );
-  const exposed = `${source}\nthis.__phoneHelpers = { normalizePhone_, extractRussianPhones_, collectWazzupMessageEvents_, isInternalManagerCalc_, isPublicCalculatorLead_ };`;
+  const exposed = `${source}\nthis.__phoneHelpers = { normalizePhone_, extractRussianPhones_, collectWazzupMessageEvents_, isInternalManagerCalc_, isPublicCalculatorLead_, inferService_, inferCleaningAddress_, inferCleaningTimestamp_ };`;
   const context: Record<string, unknown> = {};
   runInNewContext(exposed, context);
   return context.__phoneHelpers as AppsScriptPhoneHelpers;
@@ -29,6 +32,9 @@ describe('Apps Script Russian phone parsing', () => {
     collectWazzupMessageEvents_,
     isInternalManagerCalc_,
     isPublicCalculatorLead_,
+    inferService_,
+    inferCleaningAddress_,
+    inferCleaningTimestamp_,
   } =
     loadPhoneHelpers();
 
@@ -74,6 +80,37 @@ describe('Apps Script Russian phone parsing', () => {
 
   it('does not mistake order numbers for Russian phone numbers', () => {
     expect(extractRussianPhones_('Заказ 123456789012, квартира 78')).toEqual([]);
+  });
+
+  it('keeps a general cleaning with window notes classified as general', () => {
+    expect(
+      inferService_(
+        'Генеральная уборка, 50 м². По месту смотрим окна и кухонную технику.',
+        { event_kind: 'internal_calc' }
+      )
+    ).toBe('Генеральная уборка');
+  });
+
+  it('prefers the structured calculator type over free text', () => {
+    expect(
+      inferService_('Есть окна', {
+        event_kind: 'internal_calc',
+        calc_type: 'repair',
+      })
+    ).toBe('Уборка после ремонта');
+  });
+
+  it('extracts address and Moscow-time cleaning date from a legacy calculator note', () => {
+    const message = [
+      'Данные клиента:',
+      'Дата и время: 2026-07-27 09:03',
+      'Адрес: Я.Фабрициуса 23к1',
+      'Кв. 46',
+    ].join('\n');
+    expect(inferCleaningAddress_(message, {})).toBe('Я.Фабрициуса 23к1, Кв. 46');
+    expect(inferCleaningTimestamp_(message, {})).toBe(
+      Math.floor(new Date('2026-07-27T09:03:00+03:00').getTime() / 1000)
+    );
   });
 
   it('normalizes a Wazzup user API v3 inbound MAX message', () => {

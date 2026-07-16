@@ -20,13 +20,30 @@ async function sendCalcToLeadPipeline(payload: {
   leadName: string;
   price: number;
   note: string;
+  calcType: CleaningType;
+  service: string;
+  address?: string;
+  cleaningDate?: string;
+  cleaningTime?: string;
+  declaredSource?: string;
 }) {
+  const cleaningAt = payload.cleaningDate
+    ? `${payload.cleaningDate}T${payload.cleaningTime || '00:00'}:00+03:00`
+    : '';
   const technical = [
     'event_kind: internal_calc',
+    'calc_origin: manager_calculator',
+    `calc_type: ${payload.calcType}`,
+    `calc_service: ${payload.service}`,
     `calc_price: ${payload.price}`,
     `calc_lead_name: ${payload.leadName}`,
+    payload.address && `calc_address: ${payload.address}`,
+    payload.cleaningDate && `calc_cleaning_date: ${payload.cleaningDate}`,
+    payload.cleaningTime && `calc_cleaning_time: ${payload.cleaningTime}`,
+    cleaningAt && `calc_cleaning_at: ${cleaningAt}`,
+    payload.declaredSource && `declared_source: ${payload.declaredSource}`,
     `calc_created_at: ${new Date().toISOString()}`,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   await submitGoogleLead({
     name: payload.contactName,
@@ -107,6 +124,23 @@ const cleaningLabels: Record<CleaningType, string> = {
   repair: 'После ремонта',
   all_inclusive: 'Всё включено',
 };
+
+const cleaningServiceLabels: Record<CleaningType, string> = {
+  wet: 'Поддерживающая уборка',
+  general: 'Генеральная уборка',
+  repair: 'Уборка после ремонта',
+  all_inclusive: 'Всё включено',
+};
+
+const managerSourceOptions = [
+  { value: '', label: 'Не спросили / неизвестно' },
+  { value: 'Яндекс Директ', label: 'Яндекс Директ' },
+  { value: 'Яндекс поиск', label: 'Яндекс поиск' },
+  { value: 'Яндекс Бизнес', label: 'Яндекс Бизнес / Карты' },
+  { value: 'Рекомендация', label: 'Рекомендация' },
+  { value: 'Повторный клиент', label: 'Повторный клиент' },
+  { value: 'Другое', label: 'Другое' },
+] as const;
 
 // Тип-обёртка вынесена в rateForPricing(pricing, ...) выше.
 // Внутри компонента ниже создаём `const rateFor = (t,a) => rateForPricing(pricing,t,a)`.
@@ -277,6 +311,7 @@ const InternalCalcContent = () => {
 
   const [copied, setCopied] = useState(false);
   const [amoStatus, setAmoStatus] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
+  const [declaredSource, setDeclaredSource] = useState('');
   const [manualPrice, setManualPrice] = useState<number | null>(null);
   // Ручная корректировка числа клинеров (null — авто по нормативу)
   const [cleanersOverride, setCleanersOverride] = useState<number | null>(null);
@@ -493,11 +528,23 @@ const InternalCalcContent = () => {
     try {
       setAmoStatus('sending');
       const dt = [client.date, client.time].filter(Boolean).join(' ');
+      const structuredAddress = [
+        client.address,
+        client.floor && `этаж ${client.floor}`,
+        client.apartment && `кв. ${client.apartment}`,
+        client.intercom && `домофон ${client.intercom}`,
+      ].filter(Boolean).join(', ');
       await sendCalcToLeadPipeline({
         contactName: client.name || 'Без имени',
         phone: client.phone,
         leadName: `Калькулятор: ${cleaningLabels[type]}, ${area} м²${dt ? ` на ${dt}` : ''}`,
         price: finalTotal,
+        calcType: type,
+        service: cleaningServiceLabels[type],
+        address: structuredAddress,
+        cleaningDate: client.date,
+        cleaningTime: client.time,
+        declaredSource,
         note: `${estimateText}\n\n— — —\nВнутреннее (клиенту не отправлять):\nМаржа сделки: ${fmt(Math.round(econ.margin))} (${econ.marginPctVal.toFixed(0)}%)\nМаржа без клинеров: ${fmt(Math.round(econ.margin + econ.cleanersCost))}`,
       });
       setAmoStatus('ok');
@@ -524,6 +571,7 @@ const InternalCalcContent = () => {
     setBathrooms(0);
     setManualPrice(null);
     setCleanersOverride(null);
+    setDeclaredSource('');
     setClient({ date: '', time: '', name: '', phone: '', address: '', floor: '', apartment: '', intercom: '', note: '' });
   };
 
@@ -1140,6 +1188,23 @@ const InternalCalcContent = () => {
                 <div className="col-span-2">
                   <label className="text-xs text-muted-foreground">Адрес</label>
                   <Input value={client.address} onChange={(e) => setC('address', e.target.value)} placeholder="Улица, дом" className="h-10 mt-1" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs text-muted-foreground">Источник обращения (со слов клиента)</label>
+                  <select
+                    value={declaredSource}
+                    onChange={(e) => setDeclaredSource(e.target.value)}
+                    className="w-full h-10 mt-1 rounded-md border border-[#DDEBE8] bg-white px-3 text-sm focus:outline-none focus:border-primary"
+                  >
+                    {managerSourceOptions.map((option) => (
+                      <option key={option.value || 'unknown'} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Это улучшит отчёт CRM, но без ClientID или yclid не заменит коллтрекинг.
+                  </p>
                 </div>
                 <label className="col-span-2 flex items-start gap-3 cursor-pointer">
                   <input

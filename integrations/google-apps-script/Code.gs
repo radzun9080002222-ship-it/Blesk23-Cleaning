@@ -191,6 +191,8 @@ function syncRow_(sheet, rowNumber, force) {
       price: parseMoney_(parsed.attribution.calc_price),
       leadName: parsed.attribution.calc_lead_name || '',
       eventKind: parsed.attribution.event_kind || '',
+      address: inferCleaningAddress_(parsed.message, parsed.attribution),
+      cleaningAt: inferCleaningTimestamp_(parsed.message, parsed.attribution),
     };
     const contactData = {
       name: leadData.name,
@@ -256,6 +258,9 @@ function inferSource_(attribution) {
   if (source.includes('google')) return 'Google';
   if (source) return `Сайт / ${attribution.utm_source}`;
   if (attribution.yclid) return 'Яндекс Директ';
+  if (isInternalManagerCalc_(attribution) && attribution.declared_source) {
+    return String(attribution.declared_source).trim();
+  }
   if (isInternalManagerCalc_(attribution)) return 'Телефон / источник не определён';
   return 'Сайт / прямой переход';
 }
@@ -337,16 +342,67 @@ function parseMoney_(value) {
 }
 
 function inferService_(message, attribution) {
+  const explicitService = String(attribution.calc_service || '').trim();
+  if (explicitService) return explicitService;
+
+  const calcType = String(attribution.calc_type || '').toLowerCase();
+  const serviceByCalcType = {
+    wet: 'Влажная уборка',
+    general: 'Генеральная уборка',
+    repair: 'Уборка после ремонта',
+    all_inclusive: 'Всё включено',
+  };
+  if (serviceByCalcType[calcType]) return serviceByCalcType[calcType];
+
   const haystack = `${message} ${attribution.current_page || ''} ${
     attribution.landing_page || ''
   }`.toLowerCase();
 
   if (/после ремонта|posle-remonta/.test(haystack)) return 'Уборка после ремонта';
-  if (/окн|moyka-okon/.test(haystack)) return 'Мойка окон';
-  if (/мебел|химчист|furniture/.test(haystack)) return 'Химчистка мебели';
   if (/генеральн/.test(haystack)) return 'Генеральная уборка';
   if (/поддерживающ|влажн/.test(haystack)) return 'Поддерживающая уборка';
+  if (/мебел|химчист|furniture/.test(haystack)) return 'Химчистка мебели';
+  if (/окн|moyka-okon/.test(haystack)) return 'Мойка окон';
   return 'Клининг';
+}
+
+function extractMessageLine_(message, label) {
+  const escaped = String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = String(message || '').match(new RegExp(`(?:^|\\n)${escaped}:\\s*([^\\n]+)`, 'i'));
+  return match ? match[1].trim() : '';
+}
+
+function inferCleaningAddress_(message, attribution) {
+  const structured = String(attribution.calc_address || '').trim();
+  if (structured) return structured;
+
+  const lines = String(message || '').split('\n');
+  const addressIndex = lines.findIndex((line) => /^Адрес:\s*/i.test(line.trim()));
+  if (addressIndex === -1) return '';
+
+  const address = lines[addressIndex].replace(/^Адрес:\s*/i, '').trim();
+  const flatDetails = String(lines[addressIndex + 1] || '').trim();
+  if (/^(этаж|кв\.?|квартира|домофон)(?:\s|$)/i.test(flatDetails)) {
+    return [address, flatDetails].filter(Boolean).join(', ');
+  }
+  return address;
+}
+
+function inferCleaningTimestamp_(message, attribution) {
+  let raw = String(attribution.calc_cleaning_at || '').trim();
+  if (!raw) {
+    const date = String(attribution.calc_cleaning_date || '').trim();
+    const time = String(attribution.calc_cleaning_time || '').trim();
+    if (date) raw = `${date}T${time || '00:00'}:00+03:00`;
+  }
+  if (!raw) {
+    const dateTime = extractMessageLine_(message, 'Дата и время');
+    const match = dateTime.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?/);
+    if (match) raw = `${match[1]}T${match[2] || '00:00'}:00+03:00`;
+  }
+  if (!raw) return 0;
+  const timestamp = new Date(raw).getTime();
+  return Number.isFinite(timestamp) ? Math.floor(timestamp / 1000) : 0;
 }
 
 function findContactByPhone_(phoneValue) {
@@ -765,6 +821,8 @@ function buildLeadFieldValues_(leadData, fieldMap, existingLead) {
   const valuesByName = {
     'Источник обращения': leadData.source,
     'Услуга': leadData.service,
+    'Адрес уборки': leadData.address,
+    'Дата уборки': leadData.cleaningAt,
     utm_source: leadData.attribution.utm_source,
     utm_medium: leadData.attribution.utm_medium,
     utm_campaign: leadData.attribution.utm_campaign,
@@ -802,18 +860,85 @@ function buildLeadFieldValues_(leadData, fieldMap, existingLead) {
       (name === 'Источник обращения' || name === 'Первый источник') &&
       /не определ[её]н|прямой переход/i.test(existingValue || '') &&
       !/не определ[её]н|прямой переход/i.test(String(value));
+    const authoritativeCalcField =
+      leadData.eventKind === 'internal_calc' &&
+      ['Услуга', 'Адрес уборки', 'Дата уборки'].indexOf(name) !== -1;
 
-    if (name === 'Услуга' && existingValue && existingValue !== String(value)) {
-      const services = existingValue.split(';').map((item) => item.trim());
-      if (services.indexOf(String(value)) === -1) value = `${existingValue}; ${value}`;
-      else value = existingValue;
-    } else if (name !== 'Текущая страница' && existingValue && !replacesUnknownSource) {
+    if (name === 'Услуга') {
+      if (leadData.eventKind === 'internal_calc') {
+        // Калькулятор передаёт итоговый вид уборки явно и исправляет старую
+        // эвристику, которая могла принять доп. мойку окон за основную услугу.
+      } else if (existingValue && existingValue !== String(value)) {
+        const services = existingValue.split(';').map((item) => item.trim());
+        if (services.indexOf(String(value)) === -1) value = `${existingValue}; ${value}`;
+        else value = existingValue;
+      } else if (existingValue) {
+        value = existingValue;
+      }
+    } else if (
+      name !== 'Текущая страница' &&
+      existingValue &&
+      !replacesUnknownSource &&
+      !authoritativeCalcField
+    ) {
       value = existingValue;
     }
 
-    fieldValues.push({ field_id: field.id, values: [{ value: String(value) }] });
+    fieldValues.push({
+      field_id: field.id,
+      values: [{ value: name === 'Дата уборки' ? Number(value) : String(value) }],
+    });
   });
   return fieldValues;
+}
+
+function repairLatestInternalCalcLead() {
+  requireAmoToken_();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(
+    BLESK23_CONFIG.sheetName
+  );
+  if (!sheet) throw new Error(`Лист «${BLESK23_CONFIG.sheetName}» не найден.`);
+
+  const lastColumn = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0];
+  for (let rowNumber = sheet.getLastRow(); rowNumber >= 2; rowNumber -= 1) {
+    const values = sheet.getRange(rowNumber, 1, 1, lastColumn).getDisplayValues()[0];
+    const record = rowToObject_(headers, values);
+    const parsed = parseLeadMessage_(record['Сообщение'] || '');
+    if (!isInternalManagerCalc_(parsed.attribution) || !record.amo_lead_id) continue;
+
+    const service = inferService_(parsed.message, parsed.attribution);
+    const source = inferSource_(parsed.attribution);
+    const leadData = {
+      name: record['Имя'] || 'Клиент',
+      phone: record['Телефон'] || '',
+      service,
+      source,
+      attribution: parsed.attribution,
+      price: parseMoney_(parsed.attribution.calc_price),
+      leadName: parsed.attribution.calc_lead_name || '',
+      eventKind: parsed.attribution.event_kind || '',
+      address: inferCleaningAddress_(parsed.message, parsed.attribution),
+      cleaningAt: inferCleaningTimestamp_(parsed.message, parsed.attribution),
+    };
+    const existingLead = amoRequest_(`/api/v4/leads/${record.amo_lead_id}`, 'get');
+    const lead = updateExistingLead_(existingLead, leadData);
+    writeTechnicalValues_(sheet, rowNumber, headers, {
+      source,
+      service,
+      first_source: source,
+    });
+    return {
+      rowNumber,
+      leadId: Number(lead.id),
+      service,
+      source,
+      address: leadData.address,
+      cleaningAt: leadData.cleaningAt,
+    };
+  }
+
+  throw new Error('Не найдена синхронизированная заявка внутреннего калькулятора.');
 }
 
 function getPipeline_() {

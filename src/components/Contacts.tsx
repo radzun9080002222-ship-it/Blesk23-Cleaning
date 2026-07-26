@@ -36,9 +36,9 @@ async function sendToGoogleForm(payload: {
 
 function normalizePhone(phone: string) {
   let digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("8")) digits = `7${digits.slice(1)}`;
+  if (digits.length === 11 && digits.startsWith("8")) digits = `7${digits.slice(1)}`;
   if (digits.length === 10) digits = `7${digits}`;
-  return digits.length === 11 && digits.startsWith("7") ? `+${digits}` : "";
+  return digits.length >= 10 && digits.length <= 15 ? `+${digits}` : "";
 }
 
 const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
@@ -265,7 +265,7 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                       required
                     />
                     {status === "error" && !normalizePhone(phone) && (
-                      <p className="text-xs text-destructive">Укажите телефон</p>
+                      <p className="text-xs text-destructive">Проверьте номер телефона</p>
                     )}
                   </div>
                 </div>
@@ -276,7 +276,7 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                   type="submit"
                   size="lg"
                   className="w-full rounded-full shadow-lg shadow-primary/25 hero-gradient"
-                  disabled={isSending || !consent}
+                  disabled={isSending}
                 >
                   {isSending
                     ? "Отправляем..."
@@ -293,7 +293,7 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
 
                 {status === "error" && normalizePhone(phone) && (
                   <p className="text-xs text-destructive text-center">
-                    Не удалось отправить заявку. Попробуйте ещё раз или напишите в мессенджер.
+                    Не отправилось. Поставьте галочку согласия ниже и попробуйте ещё раз — или напишите нам в мессенджер.
                   </p>
                 )}
               </form>

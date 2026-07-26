@@ -181,7 +181,7 @@ const PublicCleaningCalculator = ({ mode = 'all', sectionId = 'price-calculator'
   }, [area, dirt, extras, isRepair, mold, polyana, pricing, type, wardrobe, windowFilm, windows]);
 
   const phoneDigits = phone.replace(/\D/g, '');
-  const formValid = name.trim().length >= 2 && phoneDigits.length === 11 && consent && calculation.total > 0;
+  const formValid = name.trim().length >= 2 && phoneDigits.length >= 10 && phoneDigits.length <= 15 && consent && calculation.total > 0;
   const formName = mode === 'repair' ? 'repair_public_calculator' : 'main_public_calculator';
 
   const setCount = (
@@ -192,7 +192,8 @@ const PublicCleaningCalculator = ({ mode = 'all', sectionId = 'price-calculator'
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!formValid || status === 'sending') return;
+    if (status === 'sending') return;
+    if (!formValid) { setStatus('error'); return; }
 
     const serviceSummary = calculation.lines
       .map((line) => `• ${line.label} — ${fmt(line.sum)}`)
@@ -510,7 +511,7 @@ const PublicCleaningCalculator = ({ mode = 'all', sectionId = 'price-calculator'
                   <Button
                     type="submit"
                     size="lg"
-                    disabled={!formValid || status === 'sending'}
+                    disabled={status === 'sending'}
                     className="h-12 w-full rounded-xl hero-gradient font-semibold text-white"
                   >
                     {status === 'sending' ? 'Отправляем…' : 'Отправить заявку'}
@@ -520,7 +521,7 @@ const PublicCleaningCalculator = ({ mode = 'all', sectionId = 'price-calculator'
                   </p>
                   {status === 'error' && (
                     <p className="text-center text-xs text-destructive">
-                      Не удалось отправить заявку. Попробуйте ещё раз или позвоните нам.
+                      Не отправилось. Проверьте имя и телефон и поставьте галочку согласия ниже — или позвоните нам.
                     </p>
                   )}
                 </form>

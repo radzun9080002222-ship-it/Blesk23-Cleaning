@@ -59,11 +59,12 @@ const FurnitureLeadForm = ({ composition = '', total = 0 }: Props) => {
   const [consent, setConsent] = useState(false);
 
   const digits = phone.replace(/\D/g, '');
-  const valid = name.trim().length >= 2 && digits.length === 11 && consent && total > 0;
+  const valid = name.trim().length >= 2 && digits.length >= 10 && digits.length <= 15 && consent && total > 0;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid || busy) return;
+    if (busy) return;
+    if (!valid) { setError(true); return; }
     try {
       setBusy(true);
       setError(false);
@@ -152,7 +153,7 @@ const FurnitureLeadForm = ({ composition = '', total = 0 }: Props) => {
       <Button
         type="submit"
         size="lg"
-        disabled={!valid || busy}
+        disabled={busy}
         className="w-full h-12 rounded-xl hero-gradient text-white font-semibold"
       >
         {busy ? 'Отправляем…' : 'Отправить заявку'}
@@ -164,7 +165,7 @@ const FurnitureLeadForm = ({ composition = '', total = 0 }: Props) => {
 
       {error && (
         <p className="text-xs text-destructive text-center">
-          Не удалось отправить — напишите в мессенджер.
+          Не отправилось. Проверьте имя и телефон и поставьте галочку согласия ниже — или напишите нам в мессенджер.
         </p>
       )}
       <div className="pt-2 border-t border-[#DDEBE8]">

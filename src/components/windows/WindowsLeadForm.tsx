@@ -60,11 +60,12 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
   const [consent, setConsent] = useState(false);
 
   const digits = phone.replace(/\D/g, '');
-  const valid = name.trim().length >= 2 && digits.length === 11 && consent;
+  const valid = name.trim().length >= 2 && digits.length >= 10 && digits.length <= 15 && consent;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid || busy) return;
+    if (busy) return;
+    if (!valid) { setError(true); return; }
     try {
       setBusy(true);
       setError(false);
@@ -138,7 +139,7 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
       <Button
         type="submit"
         size="lg"
-        disabled={!valid || busy}
+        disabled={busy}
         className="w-full h-12 rounded-xl hero-gradient text-white font-semibold"
       >
         {busy ? 'Отправляем…' : 'Получить расчёт'}
@@ -146,7 +147,7 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
 
       {error && (
         <p className="text-xs text-destructive text-center">
-          Не удалось отправить — напишите в мессенджер.
+          Не отправилось. Проверьте имя и телефон и поставьте галочку согласия ниже — или напишите нам в мессенджер.
         </p>
       )}
       <div className="pt-2 border-t border-[#DDEBE8]">

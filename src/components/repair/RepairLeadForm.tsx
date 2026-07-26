@@ -53,11 +53,12 @@ const RepairLeadForm = () => {
   const [consent, setConsent] = useState(false);
 
   const phoneDigits = phone.replace(/\D/g, '');
-  const valid = name.trim().length >= 2 && phoneDigits.length === 11 && consent;
+  const valid = name.trim().length >= 2 && phoneDigits.length >= 10 && phoneDigits.length <= 15 && consent;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid || isSending) return;
+    if (isSending) return;
+    if (!valid) { setError(true); return; }
 
     try {
       setIsSending(true);
@@ -128,7 +129,7 @@ const RepairLeadForm = () => {
       <Button
         type="submit"
         size="lg"
-        disabled={!valid || isSending}
+        disabled={isSending}
         className="w-full h-12 rounded-xl hero-gradient text-white font-semibold"
       >
         {isSending ? 'Отправляем...' : 'Получить точный расчёт'}
@@ -136,7 +137,7 @@ const RepairLeadForm = () => {
 
       {error && (
         <p className="text-xs text-destructive text-center">
-          Не удалось отправить заявку. Попробуйте ещё раз или напишите в мессенджер.
+          Не отправилось. Проверьте имя и телефон и поставьте галочку согласия ниже — или напишите нам в мессенджер.
         </p>
       )}
     </form>

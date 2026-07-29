@@ -270,7 +270,15 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
                   </div>
                 </div>
 
-                <ConsentCheckbox id="contact-consent" checked={consent} onChange={setConsent} />
+                <ConsentCheckbox
+                  id="contact-consent"
+                  checked={consent}
+                  error={status === "error" && !consent}
+                  onChange={(checked) => {
+                    setConsent(checked);
+                    if (checked && normalizePhone(phone)) setStatus("idle");
+                  }}
+                />
 
                 <Button
                   type="submit"
@@ -293,7 +301,9 @@ const Contacts = ({ prefilledMessage = "" }: ContactsProps) => {
 
                 {status === "error" && normalizePhone(phone) && (
                   <p className="text-xs text-destructive text-center">
-                    Не отправилось. Поставьте галочку согласия ниже и попробуйте ещё раз — или напишите нам в мессенджер.
+                    {consent
+                      ? "Не удалось отправить заявку. Попробуйте ещё раз или напишите нам в мессенджер."
+                      : "Подтвердите согласие выше и нажмите кнопку ещё раз."}
                   </p>
                 )}
               </form>

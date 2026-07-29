@@ -134,7 +134,15 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
         required
       />
 
-      <ConsentCheckbox id="windows-consent" checked={consent} onChange={setConsent} />
+      <ConsentCheckbox
+        id="windows-consent"
+        checked={consent}
+        error={error && !consent}
+        onChange={(checked) => {
+          setConsent(checked);
+          if (checked) setError(false);
+        }}
+      />
 
       <Button
         type="submit"
@@ -147,7 +155,9 @@ const WindowsLeadForm = ({ composition = '', totalLabel = '', tariffLabel = '' }
 
       {error && (
         <p className="text-xs text-destructive text-center">
-          Не отправилось. Проверьте имя и телефон и поставьте галочку согласия ниже — или напишите нам в мессенджер.
+          {consent
+            ? 'Не отправилось. Проверьте имя и телефон или напишите нам в мессенджер.'
+            : 'Подтвердите согласие выше и нажмите кнопку ещё раз.'}
         </p>
       )}
       <div className="pt-2 border-t border-[#DDEBE8]">

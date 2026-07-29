@@ -181,7 +181,7 @@ const PublicCleaningCalculator = ({ mode = 'all', sectionId = 'price-calculator'
   }, [area, dirt, extras, isRepair, mold, polyana, pricing, type, wardrobe, windowFilm, windows]);
 
   const phoneDigits = phone.replace(/\D/g, '');
-  const formValid = name.trim().length >= 2 && phoneDigits.length >= 10 && phoneDigits.length <= 15 && consent && calculation.total > 0;
+  const formValid = name.trim().length >= 2 && phoneDigits.length >= 10 && phoneDigits.length <= 15 && consent;
   const formName = mode === 'repair' ? 'repair_public_calculator' : 'main_public_calculator';
 
   const setCount = (
@@ -507,7 +507,15 @@ const PublicCleaningCalculator = ({ mode = 'all', sectionId = 'price-calculator'
                     required
                     className="h-12 rounded-xl"
                   />
-                  <ConsentCheckbox id={`${sectionId}-consent`} checked={consent} onChange={setConsent} />
+                  <ConsentCheckbox
+                    id={`${sectionId}-consent`}
+                    checked={consent}
+                    error={status === 'error' && !consent}
+                    onChange={(checked) => {
+                      setConsent(checked);
+                      if (checked && status === 'error') setStatus('idle');
+                    }}
+                  />
                   <Button
                     type="submit"
                     size="lg"
@@ -521,7 +529,9 @@ const PublicCleaningCalculator = ({ mode = 'all', sectionId = 'price-calculator'
                   </p>
                   {status === 'error' && (
                     <p className="text-center text-xs text-destructive">
-                      Не отправилось. Проверьте имя и телефон и поставьте галочку согласия ниже — или позвоните нам.
+                      {consent
+                        ? 'Не отправилось. Проверьте имя и телефон или позвоните нам.'
+                        : 'Подтвердите согласие выше и нажмите кнопку ещё раз.'}
                     </p>
                   )}
                 </form>

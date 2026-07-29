@@ -59,7 +59,7 @@ const FurnitureLeadForm = ({ composition = '', total = 0 }: Props) => {
   const [consent, setConsent] = useState(false);
 
   const digits = phone.replace(/\D/g, '');
-  const valid = name.trim().length >= 2 && digits.length >= 10 && digits.length <= 15 && consent && total > 0;
+  const valid = name.trim().length >= 2 && digits.length >= 10 && digits.length <= 15 && consent;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,11 +68,13 @@ const FurnitureLeadForm = ({ composition = '', total = 0 }: Props) => {
     try {
       setBusy(true);
       setError(false);
-      const customerComment =
-        `Заявка из калькулятора «Химчистка мебели».\n` +
-        `Состав: ${composition}.\n` +
-        `ИТОГО: ${total.toLocaleString('ru-RU')} ₽.\n` +
-        'Цена рассчитана и зафиксирована до выезда мастера.';
+      const hasCalculation = total > 0;
+      const customerComment = hasCalculation
+        ? `Заявка из калькулятора «Химчистка мебели».\n` +
+          `Состав: ${composition}.\n` +
+          `ИТОГО: ${total.toLocaleString('ru-RU')} ₽.\n` +
+          'Цена рассчитана и зафиксирована до выезда мастера.'
+        : 'Заявка со страницы «Химчистка мебели». Предварительный расчёт не выбран.';
       const technical = [
         'event_kind: internal_calc',
         'calc_origin: furniture_public_calculator',
@@ -87,7 +89,9 @@ const FurnitureLeadForm = ({ composition = '', total = 0 }: Props) => {
         comment: `${appendLeadTracking(customerComment)}\n${technical}`,
       });
       reachGoal('form_submit', { form: 'furniture_lead_form', calc_price: total });
-      reachGoal('calculator_submit', { form: 'furniture_lead_form', calc_price: total });
+      if (hasCalculation) {
+        reachGoal('calculator_submit', { form: 'furniture_lead_form', calc_price: total });
+      }
       setSent(true);
     } catch {
       reachGoal('form_error', { form: 'furniture_lead_form' });
@@ -148,7 +152,15 @@ const FurnitureLeadForm = ({ composition = '', total = 0 }: Props) => {
         required
       />
 
-      <ConsentCheckbox id="furniture-consent" checked={consent} onChange={setConsent} />
+      <ConsentCheckbox
+        id="furniture-consent"
+        checked={consent}
+        error={error && !consent}
+        onChange={(checked) => {
+          setConsent(checked);
+          if (checked) setError(false);
+        }}
+      />
 
       <Button
         type="submit"
@@ -165,7 +177,9 @@ const FurnitureLeadForm = ({ composition = '', total = 0 }: Props) => {
 
       {error && (
         <p className="text-xs text-destructive text-center">
-          Не отправилось. Проверьте имя и телефон и поставьте галочку согласия ниже — или напишите нам в мессенджер.
+          {consent
+            ? 'Не отправилось. Проверьте имя и телефон или напишите нам в мессенджер.'
+            : 'Подтвердите согласие выше и нажмите кнопку ещё раз.'}
         </p>
       )}
       <div className="pt-2 border-t border-[#DDEBE8]">

@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, Send, TrendingUp, Settings2, Settings, X } from 'lucide-react';
+import { Minus, Plus, Copy, Check, AlertTriangle, Calculator, TrendingUp, Settings2, Settings, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { submitGoogleLead } from '@/lib/googleForms';
+import { CalendarBookingButton } from '@/components/calculator/CalendarBookingButton';
 import {
   mergePricing,
   PRICING_DEFAULTS,
@@ -13,44 +13,6 @@ import {
   type CleaningType,
   type PricingConfig,
 } from '@/lib/pricing';
-
-async function sendCalcToLeadPipeline(payload: {
-  contactName: string;
-  phone: string;
-  leadName: string;
-  price: number;
-  note: string;
-  calcType: CleaningType;
-  service: string;
-  address?: string;
-  cleaningDate?: string;
-  cleaningTime?: string;
-  declaredSource?: string;
-}) {
-  const cleaningAt = payload.cleaningDate
-    ? `${payload.cleaningDate}T${payload.cleaningTime || '00:00'}:00+03:00`
-    : '';
-  const technical = [
-    'event_kind: internal_calc',
-    'calc_origin: manager_calculator',
-    `calc_type: ${payload.calcType}`,
-    `calc_service: ${payload.service}`,
-    `calc_price: ${payload.price}`,
-    `calc_lead_name: ${payload.leadName}`,
-    payload.address && `calc_address: ${payload.address}`,
-    payload.cleaningDate && `calc_cleaning_date: ${payload.cleaningDate}`,
-    payload.cleaningTime && `calc_cleaning_time: ${payload.cleaningTime}`,
-    cleaningAt && `calc_cleaning_at: ${cleaningAt}`,
-    payload.declaredSource && `declared_source: ${payload.declaredSource}`,
-    `calc_created_at: ${new Date().toISOString()}`,
-  ].filter(Boolean).join('\n');
-
-  await submitGoogleLead({
-    name: payload.contactName,
-    phone: payload.phone,
-    message: `${payload.note}\n\nАтрибуция:\n${technical}`,
-  });
-}
 
 const rateBracketLabel = (upTo: number | null, idx: number, arr: { upTo: number | null }[]): string => {
   if (upTo == null) {
@@ -122,13 +84,6 @@ const cleaningLabels: Record<CleaningType, string> = {
   wet: 'Влажная',
   general: 'Генеральная',
   repair: 'После ремонта',
-  all_inclusive: 'Всё включено',
-};
-
-const cleaningServiceLabels: Record<CleaningType, string> = {
-  wet: 'Поддерживающая уборка',
-  general: 'Генеральная уборка',
-  repair: 'Уборка после ремонта',
   all_inclusive: 'Всё включено',
 };
 
@@ -293,6 +248,9 @@ const InternalCalcContent = () => {
   const [mold, setMold] = useState(false);
   const [polyana, setPolyana] = useState(false);
   const [privateHouse, setPrivateHouse] = useState(false);
+  const [newClient, setNewClient] = useState(false);
+  const [calendarResetKey, setCalendarResetKey] = useState(0);
+  const [calendarSending, setCalendarSending] = useState(false);
   const [bathrooms, setBathrooms] = useState(0);
 
   // Данные клиента
@@ -310,7 +268,6 @@ const InternalCalcContent = () => {
   const setC = (k: keyof typeof client, v: string) => setClient({ ...client, [k]: v });
 
   const [copied, setCopied] = useState(false);
-  const [amoStatus, setAmoStatus] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
   const [declaredSource, setDeclaredSource] = useState('');
   const [manualPrice, setManualPrice] = useState<number | null>(null);
   // Ручная корректировка числа клинеров (null — авто по нормативу)
@@ -521,41 +478,6 @@ const InternalCalcContent = () => {
     }
   };
 
-  const amoReady = client.phone.replace(/\D/g, '').length >= 10 && calc.lines.length > 0;
-
-  const submitToAmo = async () => {
-    if (!amoReady || amoStatus === 'sending') return;
-    try {
-      setAmoStatus('sending');
-      const dt = [client.date, client.time].filter(Boolean).join(' ');
-      const structuredAddress = [
-        client.address,
-        client.floor && `этаж ${client.floor}`,
-        client.apartment && `кв. ${client.apartment}`,
-        client.intercom && `домофон ${client.intercom}`,
-      ].filter(Boolean).join(', ');
-      await sendCalcToLeadPipeline({
-        contactName: client.name || 'Без имени',
-        phone: client.phone,
-        leadName: `Калькулятор: ${cleaningLabels[type]}, ${area} м²${dt ? ` на ${dt}` : ''}`,
-        price: finalTotal,
-        calcType: type,
-        service: cleaningServiceLabels[type],
-        address: structuredAddress,
-        cleaningDate: client.date,
-        cleaningTime: client.time,
-        declaredSource,
-        note: `${estimateText}\n\n— — —\nВнутреннее (клиенту не отправлять):\nМаржа сделки: ${fmt(Math.round(econ.margin))} (${econ.marginPctVal.toFixed(0)}%)\nМаржа без клинеров: ${fmt(Math.round(econ.margin + econ.cleanersCost))}`,
-      });
-      setAmoStatus('ok');
-      setTimeout(() => setAmoStatus('idle'), 4000);
-    } catch (e) {
-      console.error(e);
-      setAmoStatus('err');
-      setTimeout(() => setAmoStatus('idle'), 4000);
-    }
-  };
-
   const reset = () => {
     switchType('wet');
     setArea(0);
@@ -568,6 +490,8 @@ const InternalCalcContent = () => {
     setMold(false);
     setPolyana(false);
     setPrivateHouse(false);
+    setNewClient(false);
+    setCalendarResetKey((value) => value + 1);
     setBathrooms(0);
     setManualPrice(null);
     setCleanersOverride(null);
@@ -1170,20 +1094,20 @@ const InternalCalcContent = () => {
               <h2 className="font-heading font-bold mb-3">Данные клиента</h2>
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-xs text-muted-foreground">День уборки</label>
-                  <Input type="date" value={client.date} onChange={(e) => setC('date', e.target.value)} className="h-10 mt-1" />
+                  <label htmlFor="cleaning-date" className="text-xs text-muted-foreground">День уборки</label>
+                  <Input id="cleaning-date" type="date" value={client.date} onChange={(e) => setC('date', e.target.value)} className="h-10 mt-1" />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">Время</label>
-                  <Input type="time" value={client.time} onChange={(e) => setC('time', e.target.value)} className="h-10 mt-1" />
+                  <label htmlFor="cleaning-time" className="text-xs text-muted-foreground">Время</label>
+                  <Input id="cleaning-time" type="time" value={client.time} onChange={(e) => setC('time', e.target.value)} className="h-10 mt-1" />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">Имя</label>
-                  <Input value={client.name} onChange={(e) => setC('name', e.target.value)} className="h-10 mt-1" />
+                  <label htmlFor="cleaning-name" className="text-xs text-muted-foreground">Имя</label>
+                  <Input id="cleaning-name" value={client.name} onChange={(e) => setC('name', e.target.value)} className="h-10 mt-1" />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">Телефон</label>
-                  <Input type="tel" value={client.phone} onChange={(e) => setC('phone', e.target.value)} placeholder="+7" className="h-10 mt-1" />
+                  <label htmlFor="cleaning-phone" className="text-xs text-muted-foreground">Телефон</label>
+                  <Input id="cleaning-phone" type="tel" value={client.phone} onChange={(e) => setC('phone', e.target.value)} placeholder="+7" className="h-10 mt-1" />
                 </div>
                 <div className="col-span-2">
                   <label className="text-xs text-muted-foreground">Адрес</label>
@@ -1203,7 +1127,7 @@ const InternalCalcContent = () => {
                     ))}
                   </select>
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Это улучшит отчёт CRM, но без ClientID или yclid не заменит коллтрекинг.
+                    Сохраняется в описании события со слов клиента, не является подтверждённой UTM-меткой.
                   </p>
                 </div>
                 <label className="col-span-2 flex items-start gap-3 cursor-pointer">
@@ -1220,6 +1144,11 @@ const InternalCalcContent = () => {
                     className="mt-1 accent-[#00796F] w-4 h-4"
                   />
                   <span className="text-sm"><b>Частный дом</b></span>
+                </label>
+                <label className="col-span-2 flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" checked={newClient} onChange={(event) => setNewClient(event.target.checked)}
+                    className="mt-1 accent-[#00796F] w-4 h-4" />
+                  <span className="text-sm"><b>Новый клиент</b><span className="block text-xs text-muted-foreground">Добавить «новый клиент» в заголовок календаря</span></span>
                 </label>
                 {!privateHouse && (
                   <>
@@ -1250,30 +1179,17 @@ const InternalCalcContent = () => {
               </div>
 
               <div className="mt-4 grid gap-2">
-                <Button
-                  onClick={submitToAmo}
-                  className="w-full rounded-xl bg-[#0C7C8C] hover:bg-[#0a6b79] text-white"
-                  disabled={!amoReady || amoStatus === 'sending'}
-                >
-                  {amoStatus === 'ok' ? <Check className="w-4 h-4 mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                  {amoStatus === 'sending'
-                    ? 'Отправляем...'
-                    : amoStatus === 'ok'
-                    ? 'Расчёт отправлен в amoCRM!'
-                    : amoStatus === 'err'
-                    ? 'Ошибка — попробуй ещё раз'
-                    : 'Отправить в amoCRM'}
-                </Button>
-                {!amoReady && calc.lines.length > 0 && (
-                  <p className="text-[11px] text-muted-foreground text-center -mt-1">
-                    Для отправки в amoCRM заполни телефон клиента
-                  </p>
-                )}
+                <CalendarBookingButton key={calendarResetKey} onSendingChange={setCalendarSending} booking={{
+                  type, area, newClient, privateHouse, date: client.date, time: client.time,
+                  name: client.name, phone: client.phone, declaredSource,
+                  address: [client.address, client.floor && `этаж ${client.floor}`, client.apartment && `кв. ${client.apartment}`, client.intercom && `домофон ${client.intercom}`].filter(Boolean).join(', '),
+                  estimate: estimateText, hasServices: calc.lines.length > 0,
+                }} />
                 <Button onClick={copyEstimate} variant="outline" className="w-full rounded-xl border-[#DDEBE8]" disabled={calc.lines.length === 0}>
                   {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
                   {copied ? 'Скопировано!' : 'Скопировать смету + данные'}
                 </Button>
-                <Button variant="outline" onClick={reset} className="w-full rounded-xl border-[#DDEBE8]">
+                <Button variant="outline" onClick={reset} disabled={calendarSending} className="w-full rounded-xl border-[#DDEBE8]">
                   Сбросить всё
                 </Button>
               </div>

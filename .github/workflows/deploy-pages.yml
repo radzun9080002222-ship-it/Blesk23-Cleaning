@@ -44,6 +44,8 @@ jobs:
         run: npm test
 
       - name: Build
+        env:
+          VITE_GOOGLE_CALENDAR_CLIENT_ID: ${{ vars.VITE_GOOGLE_CALENDAR_CLIENT_ID }}
         run: npm run build
 
       - name: Optimize images

@@ -143,6 +143,7 @@
 
     <!-- Yandex.Metrika -->
     <script type="text/javascript">
+      if (!/^\/sklad(?:\/|\.html)?$/.test(location.pathname)) {
       (function (m, e, t, r, i, k, a) {
         m[i] =
           m[i] ||
@@ -173,6 +174,7 @@
         accurateTrackBounce: true,
         webvisor: true
       });
+      }
     </script>
     <link rel="canonical" href="https://www.blesk23.ru/" />
 

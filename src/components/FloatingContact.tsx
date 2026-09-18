@@ -8,6 +8,8 @@ const MAX_HREF =
 
 const HIDDEN_ROUTES = [
   '/calc',
+  '/sklad',
+  '/sklad/',
   '/privacy',
   '/consent',
   '/requisites',

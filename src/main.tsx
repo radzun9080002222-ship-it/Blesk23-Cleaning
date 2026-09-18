@@ -11,7 +11,9 @@ if (redirectPath) {
   window.history.replaceState(null, "", redirectPath);
 }
 
-captureLeadAttribution();
-installAutomaticGoalTracking();
+if (!/^\/sklad(?:\/|\.html)?$/.test(window.location.pathname)) {
+  captureLeadAttribution();
+  installAutomaticGoalTracking();
+}
 
 createRoot(document.getElementById("root")!).render(<App />);

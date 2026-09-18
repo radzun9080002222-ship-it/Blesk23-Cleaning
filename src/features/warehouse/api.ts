@@ -9,6 +9,7 @@ export async function rpc<T>(name: string, args: Record<string, unknown>): Promi
       method: 'POST', headers: { apikey: key, 'Content-Type': 'application/json' }, body: JSON.stringify(args), signal: AbortSignal.timeout(20000),
     });
   } catch { throw new WarehouseError('Нет связи с сервером. Проверьте интернет. Если сохраняли операцию, повторите её: двойного проведения не будет.'); }
+  if (response.ok && response.status === 204) return undefined as T;
   const result = await response.json();
   if (!response.ok) {
     const messages: Record<string, string> = { AUTH: 'Сессия завершилась. Войдите снова.', CONFLICT: 'Остатки уже изменились. Обновите данные и проверьте операцию.', UNKNOWN: 'Остаток ещё не посчитан. Сначала проведите инвентаризацию.', STOCK: 'Недостаточно остатка для этой операции.', INVALID: 'Проверьте поля операции.', NOTE: 'Укажите основание операции.', MISSING: 'Позиция не найдена.' };

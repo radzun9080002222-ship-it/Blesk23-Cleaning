@@ -7,6 +7,7 @@ const dist = 'dist';
 const base = 'https://www.blesk23.ru';
 
 const routes = {
+  '/sklad': { title: 'Склад — Империя Блеска', description: 'Внутренний складской учёт', robots: 'noindex, nofollow, noarchive' },
   '/': {
     title: 'Империя Блеска — Профессиональный клининг в Сочи',
     description:
@@ -72,6 +73,10 @@ for (const [route, meta] of Object.entries(routes)) {
       /<meta\s+name="robots"\s+content="[\s\S]*?"\s*\/?>/,
       `<meta name="robots" content="${meta.robots || 'index, follow'}" />`,
     );
+
+  if (route === '/sklad') {
+    html = html.replace(/<noscript>[\s\S]*?<\/noscript>/g, '');
+  }
 
   const canonical = `<link rel="canonical" href="${base}${route}" />`;
   html = /<link\s+rel="canonical"[\s\S]*?\/?>/.test(html)

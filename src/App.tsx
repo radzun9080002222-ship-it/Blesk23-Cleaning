@@ -17,6 +17,7 @@ const AfterRepairCleaning = lazy(() => import("./pages/AfterRepairCleaning"));
 const FurnitureCleaning = lazy(() => import("./pages/FurnitureCleaning"));
 const OfficeCleaning = lazy(() => import("./pages/OfficeCleaning"));
 const WindowsCleaning = lazy(() => import("./pages/WindowsCleaning"));
+const Warehouse = lazy(() => import("./pages/Warehouse"));
 const InternalCalc = lazy(() => import("./pages/InternalCalc"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Consent = lazy(() => import("./pages/Consent"));
@@ -47,6 +48,7 @@ const App = () => (
 <Route path="/requisites" element={<Requisites />} />
 
 {/* internal, noindex */}
+<Route path="/sklad" element={<Warehouse />} />
 <Route path="/calc" element={<InternalCalc />} />
 
 {/* catch-all */}

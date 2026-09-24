@@ -13,3 +13,50 @@ it('sends credentials to server and shows rejected login',async()=>{vi.mocked(rp
 it('keeps unknown Sochi stock out of purchasing list',async()=>{sessionStorage.setItem('sklad-session',JSON.stringify({token:'test',actor:'Тест'}));mount();await screen.findByText('Ведро');fireEvent.click(screen.getByRole('button',{name:'Сочи'}));fireEvent.click(screen.getByText('К пополнению'));expect(screen.queryByText('Ведро')).not.toBeInTheDocument();expect(screen.getByText('По выбранным условиям позиций нет.')).toBeInTheDocument();});
 it('retries an uncertain write with exactly the same operation id',async()=>{sessionStorage.setItem('sklad-session',JSON.stringify({token:'test',actor:'Тест'}));vi.mocked(rpc).mockRejectedValueOnce(new WarehouseError('Нет связи')).mockResolvedValueOnce({...data,revision:1});mount();await screen.findByText('Ведро');fireEvent.click(screen.getByRole('button',{name:'Поступление: Ведро'}));fireEvent.change(screen.getByLabelText('Количество: Ведро'),{target:{value:'2'}});fireEvent.change(screen.getByLabelText('Основание / комментарий'),{target:{value:'Закупка'}});fireEvent.click(screen.getByText('Провести операцию'));await screen.findByText('Проверить / повторить');const first=vi.mocked(rpc).mock.calls[0];fireEvent.click(screen.getByText('Проверить / повторить'));await waitFor(()=>expect(rpc).toHaveBeenCalledTimes(2));expect(vi.mocked(rpc).mock.calls[1]).toEqual(first);await screen.findByText('Операция проведена. Остатки сохранены на сервере.');});
 it('recovers an uncertain operation after remount without a new id',async()=>{sessionStorage.setItem('sklad-session',JSON.stringify({token:'test',actor:'Тест'}));const p={id:'recovery-id',revision:0,command:{kind:'receipt',warehouse:'adler',note:'Закупка',lines:[{id:'bucket',quantity:2}]}};sessionStorage.setItem('sklad-pending',JSON.stringify(p));vi.mocked(rpc).mockResolvedValue({...data,revision:1});mount();await screen.findByText('Ведро');fireEvent.click(screen.getByText('Проверить предыдущую операцию'));await screen.findByText('Результат предыдущей операции подтверждён. Остатки сохранены.');expect(rpc).toHaveBeenCalledWith('command',{p_token:'test',p_id:p.id,p_revision:0,p_command:p.command});expect(sessionStorage.getItem('sklad-pending')).toBeNull();});
+it('shows the standard separately from the counted quantity and can filter equipment',async()=>{
+  vi.mocked(readStock).mockResolvedValue({revision:0,items:[data.items[0],{id:'vac',name:'Пылесос T8',category:'Техника',unit:'шт',note:'',adler:1,sochi:1,targetAdler:2,targetSochi:1}],history:[]});
+  sessionStorage.setItem('sklad-session',JSON.stringify({token:'test',actor:'Тест'}));
+  mount();
+  await screen.findByText('Ведро');
+  expect(screen.getByRole('columnheader',{name:/норма, не факт/})).toBeInTheDocument();
+  expect(screen.getByText(/отдельно от факта/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Фильтр остатков'),{target:{value:'equipment'}});
+  expect(screen.queryByText('Ведро')).not.toBeInTheDocument();
+  expect(screen.getByText('Пылесос T8')).toBeInTheDocument();
+  expect(screen.getByText(/Эталон техники: в столбце/)).toBeInTheDocument();
+});
+it('shows a repair badge and keeps the counted quantity',async()=>{
+  vi.mocked(readStock).mockResolvedValue({...data,items:[{...data.items[0],note:'держать на складе, ремонт'}]});
+  sessionStorage.setItem('sklad-session',JSON.stringify({token:'test',actor:'Тест'}));
+  mount();
+  await screen.findByText('Ведро');
+  expect(screen.getAllByText('В ремонте').some(el=>el.classList.contains('badge-repair'))).toBe(true);
+  expect(screen.getByText('7')).toBeInTheDocument();
+});
+it('deletes an item after confirmation',async()=>{
+  sessionStorage.setItem('sklad-session',JSON.stringify({token:'test',actor:'Тест'}));
+  vi.mocked(rpc).mockResolvedValue({...data,items:[],revision:1});
+  mount();
+  await screen.findByText('Ведро');
+  fireEvent.click(screen.getByRole('button',{name:'Удалить: Ведро'}));
+  fireEvent.change(screen.getByLabelText('Основание / комментарий'),{target:{value:'Непосчитанная заглушка'}});
+  fireEvent.click(screen.getByRole('checkbox',{name:'Подтверждаю безвозвратное удаление'}));
+  fireEvent.click(screen.getByText('Удалить безвозвратно'));
+  await waitFor(()=>expect(rpc).toHaveBeenCalled());
+  expect(vi.mocked(rpc).mock.calls[0][0]).toBe('command');
+  expect(vi.mocked(rpc).mock.calls[0][1]).toMatchObject({p_token:'test',p_revision:0,p_command:{kind:'delete',id:'bucket',note:'Непосчитанная заглушка'}});
+});
+it('appends a repair note through annotate without sending a quantity',async()=>{
+  vi.mocked(readStock).mockResolvedValue({...data,items:[{...data.items[0],note:'эталон Адлер'}]});
+  sessionStorage.setItem('sklad-session',JSON.stringify({token:'test',actor:'Тест'}));
+  vi.mocked(rpc).mockResolvedValue({...data,revision:1});
+  mount();
+  await screen.findByText('Ведро');
+  fireEvent.click(screen.getByRole('button',{name:'Примечание: Ведро'}));
+  fireEvent.click(screen.getByRole('button',{name:'Добавить «В ремонте.»'}));
+  fireEvent.change(screen.getByLabelText('Основание / комментарий'),{target:{value:'Отметили ремонт'}});
+  fireEvent.click(screen.getByText('Сохранить примечание'));
+  await waitFor(()=>expect(rpc).toHaveBeenCalled());
+  expect(vi.mocked(rpc).mock.calls[0][1]).toMatchObject({p_token:'test',p_revision:0,p_command:{kind:'annotate',id:'bucket',note:'Отметили ремонт',itemNote:'эталон Адлер В ремонте.'}});
+  expect(vi.mocked(rpc).mock.calls[0][1].p_command).not.toHaveProperty('lines');
+});

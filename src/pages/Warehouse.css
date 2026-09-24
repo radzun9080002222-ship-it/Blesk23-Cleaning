@@ -1,6 +1,6 @@
 .sklad{--ink:#173d36;--green:#157662;--line:#e1e8e3;color:var(--ink);background:#f5f7f3;min-height:100vh;font-family:Inter,Arial,sans-serif}.sklad *{box-sizing:border-box}.sklad button,.sklad input,.sklad select,.sklad textarea{font:inherit}.sklad button{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 13px;border:1px solid var(--line);background:white;border-radius:9px;font-size:13px;cursor:pointer;color:var(--ink)}.sklad button:hover{background:#edf5ef}.sklad button:disabled{opacity:.5;cursor:wait}.sklad button.primary{background:var(--green);color:white;border-color:var(--green)}.sklad input,.sklad select,.sklad textarea{min-width:0;border:1px solid #cedbd2;border-radius:8px;padding:11px 12px;background:white;color:var(--ink);width:100%}.sklad input:focus,.sklad select:focus,.sklad textarea:focus,.sklad button:focus-visible{outline:3px solid #97c9b2;outline-offset:2px}.sklad label{display:grid;gap:7px;font-size:13px;font-weight:600}.sklad small{font-size:12px}.sklad .muted{color:#718178;font-size:14px}.sklad h1{font-size:42px;font-weight:650;letter-spacing:-1.5px;line-height:1.2;margin:7px 0 12px}.sklad h2{font-size:25px;font-weight:650}.sklad .eyebrow{font-size:10px;font-weight:700;letter-spacing:1.8px;color:#5b7d69}.sklad-header{height:84px;padding:0 5%;background:#fff;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.brand,.header-actions{display:flex;align-items:center;gap:13px}.brand b{font-size:17px}.brand small{display:block;color:#73867b;margin-top:3px}.sklad-logo{height:43px;width:43px;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;background:#e3efe4;color:var(--green)}.header-actions{font-size:13px}.sklad-content{max-width:1440px;margin:auto;padding:40px 5%}.title-row,.location-row{display:flex;align-items:center;justify-content:space-between;gap:20px}.tools{display:flex;gap:8px;flex-wrap:wrap}.location-row{margin-top:32px}.segmented{display:flex;padding:4px;background:#e7ece5;border-radius:11px}.sklad .segmented button{min-width:105px;background:transparent;border:none;color:#617668}.sklad .segmented .active{background:white;box-shadow:0 1px 4px #193e3612;color:var(--ink);font-weight:700}.sync{font-size:11px;color:#768779}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:23px 0 30px}.stats>div{background:white;border:1px solid var(--line);border-radius:14px;padding:22px}.stats small{display:block;color:#687c6d}.stats strong{display:block;font-size:36px;font-weight:550;margin:8px 0}.stats span{font-size:11px;color:#869087}.orange{color:#c06b35}.tabs{display:flex;gap:24px;border-bottom:1px solid var(--line);margin-bottom:22px}.sklad .tabs button{border:0;background:none;border-radius:0;padding:12px 0;color:#7d897e}.sklad .tabs button.active{color:var(--green);border-bottom:2px solid var(--green);font-weight:700}.stock-toolbar{display:flex;gap:10px;margin-bottom:16px}.stock-toolbar .search{flex:1;display:flex;align-items:center;position:relative}.search svg{position:absolute;left:12px;color:#8a998b}.sklad .search input{padding-left:38px}.stock-toolbar select{width:175px;font-size:12px}.stock-toolbar button{white-space:nowrap}/* Compact stock table: the same columns on desktop and mobile. */
 .stock-table{background:white;border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:72vh;scrollbar-gutter:stable}
-.inventory-table{width:100%;min-width:750px;border-collapse:separate;border-spacing:0;font-size:13px;line-height:1.35}
+.inventory-table{width:100%;min-width:860px;border-collapse:separate;border-spacing:0;font-size:13px;line-height:1.35}
 .inventory-table th,.inventory-table td{padding:7px 12px;border-bottom:1px solid #e7ece6;text-align:left;vertical-align:middle}
 .inventory-table thead th{position:sticky;top:0;z-index:2;background:#edf2eb;color:#627460;font-size:11px;font-weight:600;white-space:nowrap;height:36px}
 .inventory-table tbody tr:last-child>*{border-bottom:0}
@@ -16,8 +16,22 @@
 .inventory-table .number{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .inventory-table .unknown{font-size:11px;font-weight:400;color:#96763f}
 .sklad .inventory-table .target-value{border:0;background:none;justify-content:start;padding:4px 0;font-size:13px;color:#59734f;min-height:28px}
-.badge-short,.badge-ok{display:inline-block;border-radius:4px;padding:3px 7px;font-size:12px}
+.badge-short,.badge-ok,.badge-repair,.badge-unknown{display:inline-block;border-radius:4px;padding:3px 7px;font-size:12px}
 .badge-short{color:#a46230;background:#fff1de}.badge-ok{color:#719773;background:#edf6eb}
+.badge-repair{color:#8a3412;background:#ffe4cc;font-weight:700}
+.badge-unknown{color:#7a6233;background:#f7f0e2;font-weight:600}
+.th-stack{display:flex;flex-direction:column;gap:1px;line-height:1.15}
+.th-stack small{font-size:9px;font-weight:500;letter-spacing:0;color:#6d7f68;text-transform:none}
+.table-legend{margin:0 0 10px;font-size:12px;line-height:1.45;color:#5f7364}
+.name-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.status-cell{min-width:168px}
+.status-badges{display:flex;flex-direction:column;align-items:flex-start;gap:3px;margin-bottom:6px}
+.status-badges:empty{display:none;margin:0}
+.sklad button.danger{background:#9f4026;color:#fff;border-color:#9f4026}
+.sklad button.danger:hover{background:#87351f}
+.sklad .inventory-table .row-actions button.danger-icon{color:#9f4026}
+.sklad label.confirm-row{display:flex;align-items:center;gap:8px;font-weight:650}
+.sklad label.confirm-row input{width:18px;height:18px}
 .row-actions{display:flex;gap:4px;white-space:nowrap}
 .sklad .inventory-table .row-actions button{padding:5px;width:29px;height:29px;border-color:#dfe7db;border-radius:6px}
 .table-scroll-hint{display:none}
@@ -34,7 +48,7 @@
 @media(max-width:700px){
 .sklad-content{padding:18px 12px}.stats{gap:6px}.stats>div{padding:10px}.stats strong{font-size:23px}.stats span{display:none}
 .location-row{gap:8px}.sklad .title-row h1{font-size:29px}.title-row{gap:12px}
-.stock-table{max-height:70vh}.inventory-table{min-width:700px}.inventory-table th,.inventory-table td{padding:6px 9px}
+.stock-table{max-height:70vh}.inventory-table{min-width:820px}.inventory-table th,.inventory-table td{padding:6px 9px}
 .inventory-table .item-name{min-width:160px;max-width:180px;width:160px;position:sticky;left:0;z-index:1;background:#fff;border-right:1px solid #dde6d8}
 .inventory-table thead th:first-child{left:0;z-index:3;border-right:1px solid #dde6d8}
 .inventory-table tbody tr:nth-child(even) .item-name{background:#f8faf6}

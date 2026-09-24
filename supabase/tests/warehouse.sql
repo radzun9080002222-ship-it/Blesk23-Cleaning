@@ -1,7 +1,7 @@
 -- All test changes are rolled back. Run against the warehouse project as postgres.
 begin;
 do $$
-declare s jsonb; s2 jsonb; r integer; op uuid; id1 text; id2 text; blocked boolean; i integer;
+declare s jsonb; s2 jsonb; r integer; op uuid; id1 text; id2 text; blocked boolean; i integer; qty numeric; cnt integer;
 begin
   assert public.sklad_login(null,'SQL test')->>'error' is not null, 'Null PIN rejected';
   assert public.sklad_login('0000',null)->>'error' is not null, 'Null actor rejected';
@@ -48,6 +48,48 @@ begin
   id2:=s->'items'->i->>'id';
   s:=public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r,jsonb_build_object('kind','inventory','warehouse','adler','note','Test decimal','lines',jsonb_build_array(jsonb_build_object('id',id2,'quantity',1.125))));
   assert (s->'items'->i->>'adler')::numeric=1.125, 'Decimal liquids supported';
+  r:=(s->>'revision')::integer;
+  qty:=(select (value->>'adler')::numeric from jsonb_array_elements(s->'items') value where value->>'id'=id1);
+  s:=public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r,jsonb_build_object('kind','annotate','note','Test annotate','id',id1,'itemNote','В ремонте.')); r:=(s->>'revision')::integer;
+  assert (select value->>'note' from jsonb_array_elements(s->'items') value where value->>'id'=id1)='В ремонте.', 'Annotate sets the item note';
+  assert (select (value->>'adler')::numeric from jsonb_array_elements(s->'items') value where value->>'id'=id1)=qty, 'Annotate does not change quantity';
+  assert (select (value->>'targetAdler')::numeric from jsonb_array_elements(s->'items') value where value->>'id'=id1)=15, 'Annotate does not change the standard';
+  assert exists(select 1 from jsonb_array_elements(s->'history') h where h->>'kind'='annotate' and h->>'note'='Test annotate' and h->'changes'->0->>'field'='note' and h->'changes'->0->>'after'='В ремонте.' and jsonb_typeof(h->'changes'->0->'after')='string'), 'Annotate is recorded';
+  s:=public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r,jsonb_build_object('kind','annotate','note','Test annotate lines','lines',jsonb_build_array(jsonb_build_object('id',id1,'note','В ремонте. Эталон сохранён')))); r:=(s->>'revision')::integer;
+  assert (select value->>'note' from jsonb_array_elements(s->'items') value where value->>'id'=id1)='В ремонте. Эталон сохранён', 'Annotate accepts a single line';
+  blocked:=false;
+  begin perform public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r,jsonb_build_object('kind','annotate','note','Test annotate missing note','id',id1)); exception when others then blocked:=sqlerrm='INVALID'; end;
+  assert blocked, 'Annotate requires the new item note';
+  blocked:=false;
+  begin perform public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r,jsonb_build_object('kind','annotate','note','Test annotate missing item','id','missing','itemNote','В ремонте.')); exception when others then blocked:=sqlerrm='MISSING'; end;
+  assert blocked, 'Annotate rejects an unknown item';
+  blocked:=false;
+  begin perform public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r,jsonb_build_object('kind','annotate','note','x','id',id1,'itemNote','В ремонте.')); exception when others then blocked:=sqlerrm='NOTE'; end;
+  assert blocked, 'Annotate still requires an operation note';
+  blocked:=false;
+  begin perform public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r,jsonb_build_object('kind','annotate','note','Test annotate length','id',id1,'itemNote',repeat('я',1001))); exception when others then blocked:=sqlerrm='INVALID'; end;
+  assert blocked, 'Item note cannot exceed 1000 characters';
+  blocked:=false;
+  begin perform public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r,jsonb_build_object('kind','annotate','note','Test annotate batch','lines',jsonb_build_array(jsonb_build_object('id',id1,'note','a'),jsonb_build_object('id',id2,'note','b')))); exception when others then blocked:=sqlerrm='INVALID'; end;
+  assert blocked and public.sklad_read('warehouse-transaction-test')=s, 'Failed annotate must not change data';
+  s:=public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r,jsonb_build_object('kind','annotate','note','Test clear note','id',id1,'itemNote','')); r:=(s->>'revision')::integer;
+  assert (select value->>'note' from jsonb_array_elements(s->'items') value where value->>'id'=id1)='', 'Annotate can clear a note';
+  blocked:=false;
+  begin perform public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r,jsonb_build_object('kind','delete','note','Test missing delete','id','missing-item')); exception when others then blocked:=sqlerrm='MISSING'; end;
+  assert blocked and (public.sklad_read('warehouse-transaction-test')->>'revision')::integer=r, 'Missing delete is rejected';
+  cnt:=jsonb_array_length(s->'items');
+  op:=gen_random_uuid();
+  s:=public.sklad_command('warehouse-transaction-test',op,r,jsonb_build_object('kind','delete','note','Test delete','id',id2)); r:=(s->>'revision')::integer;
+  assert jsonb_array_length(s->'items')=cnt-1, 'Delete removes one item';
+  assert (select count(*) from jsonb_array_elements(s->'items') value where value->>'id'=id2)=0, 'Deleted id is gone';
+  assert (select count(*) from jsonb_array_elements(s->'items') value where value->>'id'=id1)=1, 'Delete keeps other items';
+  assert exists(select 1 from jsonb_array_elements(s->'history') h, jsonb_array_elements(h->'changes') c where h->>'kind'='delete' and h->>'note'='Test delete' and (c->>'removed')::boolean and c->>'warehouse'='adler' and jsonb_typeof(c->'before')='number' and (c->>'before')::numeric=1.125), 'Delete records the removed Adler quantity';
+  assert exists(select 1 from jsonb_array_elements(s->'history') h, jsonb_array_elements(h->'changes') c where h->>'note'='Test delete' and c->>'warehouse'='sochi' and jsonb_typeof(c->'before')='null'), 'Delete records an unknown Sochi quantity as null';
+  s2:=public.sklad_command('warehouse-transaction-test',op,r-1,jsonb_build_object('kind','delete'));
+  assert s2=s, 'Delete retry is idempotent';
+  blocked:=false;
+  begin perform public.sklad_command('warehouse-transaction-test',gen_random_uuid(),r-1,jsonb_build_object('kind','delete','note','Stale delete','id',id1)); exception when others then blocked:=sqlerrm='CONFLICT'; end;
+  assert blocked, 'Stale delete rejected';
   perform public.sklad_logout('warehouse-transaction-test');
   blocked:=false;
   begin perform public.sklad_read('warehouse-transaction-test'); exception when others then blocked:=sqlerrm='AUTH'; end;

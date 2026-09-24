@@ -13,6 +13,10 @@ export function shortage(item: Item, w: Warehouse): number | null {
   const actual = item[w], target = item[targetKey(w)];
   return actual === null || target === null ? null : Math.max(0, target - actual);
 }
+/** Fact column for the selected warehouse. Numeric 0 is empty stock; null is still uncounted. */
+export function isZeroFact(item: Item, w: Warehouse): boolean {
+  return item[w] === 0;
+}
 export function quantity(value: string): number {
   if (!/^\d+(?:[.,]\d{1,3})?$/.test(value.trim())) throw new Error('Укажите число от 0, не более трёх знаков после запятой.');
   const number = Number(value.trim().replace(',', '.'));

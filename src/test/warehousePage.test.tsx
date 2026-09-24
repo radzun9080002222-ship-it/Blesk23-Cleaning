@@ -60,3 +60,53 @@ it('appends a repair note through annotate without sending a quantity',async()=>
   expect(vi.mocked(rpc).mock.calls[0][1]).toMatchObject({p_token:'test',p_revision:0,p_command:{kind:'annotate',id:'bucket',note:'Отметили ремонт',itemNote:'эталон Адлер В ремонте.'}});
   expect(vi.mocked(rpc).mock.calls[0][1].p_command).not.toHaveProperty('lines');
 });
+it('hides zero fact on the selected warehouse until the toggle is off',async()=>{
+  vi.mocked(readStock).mockResolvedValue({revision:0,items:[
+    {id:'mop',name:'Швабра',category:'Инвентарь',unit:'шт',note:'',adler:0,sochi:0,targetAdler:2,targetSochi:null},
+    {id:'sponge',name:'Губка',category:'Инвентарь',unit:'шт',note:'',adler:1,sochi:4,targetAdler:4,targetSochi:4},
+    {id:'vac',name:'Пылесос',category:'Техника',unit:'шт',note:'',adler:1,sochi:0,targetAdler:1,targetSochi:null},
+    {id:'acid',name:'Кислота',category:'Химия',unit:'л',note:'',adler:null,sochi:0,targetAdler:null,targetSochi:null},
+  ],history:[]});
+  sessionStorage.setItem('sklad-session',JSON.stringify({token:'test',actor:'Тест'}));
+  mount();
+  await screen.findByText('Губка');
+  const toggle = screen.getByRole('checkbox',{name:'Скрыть нули'});
+  expect(toggle).toBeChecked();
+  expect(screen.queryByText('Швабра')).not.toBeInTheDocument();
+  expect(screen.getByText('Пылесос')).toBeInTheDocument();
+  expect(screen.getByText('Кислота')).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Фильтр остатков'),{target:{value:'short'}});
+  expect(screen.getByText('Губка')).toBeInTheDocument();
+  expect(screen.queryByText('Швабра')).not.toBeInTheDocument();
+  expect(screen.queryByText('Пылесос')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Фильтр остатков'),{target:{value:'unknown'}});
+  expect(screen.getByText('Кислота')).toBeInTheDocument();
+  expect(screen.queryByText('Швабра')).not.toBeInTheDocument();
+  expect(screen.queryByText('Губка')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Фильтр остатков'),{target:{value:'equipment'}});
+  expect(screen.getByText('Пылесос')).toBeInTheDocument();
+  expect(screen.queryByText('Швабра')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Фильтр остатков'),{target:{value:'all'}});
+  fireEvent.change(screen.getByLabelText('Категория'),{target:{value:'Техника'}});
+  expect(screen.getByText('Пылесос')).toBeInTheDocument();
+  expect(screen.queryByText('Губка')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Категория'),{target:{value:''}});
+  fireEvent.click(screen.getByText('К пополнению'));
+  expect(screen.getByText('Губка')).toBeInTheDocument();
+  expect(screen.queryByText('Швабра')).not.toBeInTheDocument();
+  fireEvent.click(toggle);
+  expect(toggle).not.toBeChecked();
+  expect(screen.getByText('Швабра')).toBeInTheDocument();
+  expect(screen.getByText('Губка')).toBeInTheDocument();
+  fireEvent.click(toggle);
+  fireEvent.click(screen.getByText('Остатки'));
+  fireEvent.click(screen.getByRole('button',{name:'Сочи'}));
+  expect(screen.getByText('Губка')).toBeInTheDocument();
+  expect(screen.queryByText('Швабра')).not.toBeInTheDocument();
+  expect(screen.queryByText('Пылесос')).not.toBeInTheDocument();
+  expect(screen.queryByText('Кислота')).not.toBeInTheDocument();
+  fireEvent.click(toggle);
+  expect(screen.getByText('Швабра')).toBeInTheDocument();
+  expect(screen.getByText('Пылесос')).toBeInTheDocument();
+  expect(screen.getByText('Кислота')).toBeInTheDocument();
+});

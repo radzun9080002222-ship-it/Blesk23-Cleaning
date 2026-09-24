@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { annotateCommand, deleteCommand, inRepair, quantity, rowStatuses, shortage, withRepairNote, type Item } from '@/features/warehouse/types';
+import { annotateCommand, deleteCommand, inRepair, isZeroFact, quantity, rowStatuses, shortage, withRepairNote, type Item } from '@/features/warehouse/types';
 const item: Item = {id:'1',name:'Ведро',category:'Инвентарь',unit:'шт',note:'',adler:3,sochi:null,targetAdler:7,targetSochi:4};
 describe('warehouse quantities',()=>{
-  it('keeps unknown stock distinct from zero',()=>{expect(shortage(item,'sochi')).toBeNull();expect(shortage({...item,sochi:0},'sochi')).toBe(4);});
+  it('keeps unknown stock distinct from zero',()=>{expect(shortage(item,'sochi')).toBeNull();expect(shortage({...item,sochi:0},'sochi')).toBe(4);expect(isZeroFact(item,'sochi')).toBe(false);expect(isZeroFact({...item,adler:0},'adler')).toBe(true);expect(isZeroFact({...item,sochi:0},'sochi')).toBe(true);expect(isZeroFact(item,'adler')).toBe(false);});
   it('does not recommend purchases without a target',()=>{expect(shortage({...item,targetAdler:null},'adler')).toBeNull();});
   it('computes shortage and never treats surplus as negative demand',()=>{expect(shortage(item,'adler')).toBe(4);expect(shortage({...item,adler:10},'adler')).toBe(0);});
   it('accepts Russian decimals and explicit zero',()=>{expect(quantity(' 1,125 ')).toBe(1.125);expect(quantity('0')).toBe(0);});

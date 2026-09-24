@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ArrowDownToLine, ArrowLeftRight, ClipboardCheck, Download, LogOut, Package, Pencil, Plus, RefreshCw, Search, SlidersHorizontal, Trash2, X, XCircle } from 'lucide-react';
-import { annotateCommand, categories, deleteCommand, inRepair, isNoteChange, kinds, quantity, rowStatuses, shortage, targetKey, units, warehouses, withRepairNote, type Item, type NoteChange, type Snapshot, type StockChange, type Warehouse as WarehouseId } from '@/features/warehouse/types';
+import { annotateCommand, categories, deleteCommand, inRepair, isNoteChange, isZeroFact, kinds, quantity, rowStatuses, shortage, targetKey, units, warehouses, withRepairNote, type Item, type NoteChange, type Snapshot, type StockChange, type Warehouse as WarehouseId } from '@/features/warehouse/types';
 import { readStock, rpc, WarehouseError } from '@/features/warehouse/api';
 import './Warehouse.css';
 
@@ -25,7 +25,7 @@ export default function Warehouse() {
   const [pin, setPin] = useState(''); const [actor, setActor] = useState('');
   const [data, setData] = useState<Snapshot | null>(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [warehouse, setWarehouse] = useState<WarehouseId>('adler'); const [tab, setTab] = useState('stock');
-  const [query, setQuery] = useState(''); const [category, setCategory] = useState(''); const [filter, setFilter] = useState('all');
+  const [query, setQuery] = useState(''); const [category, setCategory] = useState(''); const [filter, setFilter] = useState('all'); const [hideZero, setHideZero] = useState(true);
   const [modal, setModal] = useState<{ kind: Kind; item?: Item } | null>(null);
   const [amounts, setAmounts] = useState<Record<string, string>>({}); const [note, setNote] = useState(''); const [itemNote, setItemNote] = useState(''); const [confirmDelete, setConfirmDelete] = useState(false);
   const [newName, setNewName] = useState(''); const [newUnit, setNewUnit] = useState('шт'); const [newCategory, setNewCategory] = useState('Инвентарь');
@@ -98,7 +98,7 @@ export default function Warehouse() {
     } finally { lock.current=false; setBusy(false); }
   }
   const items = data?.items || [];
-  const shown = items.filter(i=>(!category || i.category===category) && `${i.name} ${i.note}`.toLowerCase().includes(query.toLowerCase()) && (filter==='all' || (filter==='short' && (shortage(i,warehouse)||0)>0) || (filter==='unknown' && i[warehouse]===null) || (filter==='notes' && !!i.note) || (filter==='repair' && inRepair(i.note)) || (filter==='equipment' && i.category==='Техника')));
+  const shown = items.filter(i=>(!category || i.category===category) && `${i.name} ${i.note}`.toLowerCase().includes(query.toLowerCase()) && (filter==='all' || (filter==='short' && (shortage(i,warehouse)||0)>0) || (filter==='unknown' && i[warehouse]===null) || (filter==='notes' && !!i.note) || (filter==='repair' && inRepair(i.note)) || (filter==='equipment' && i.category==='Техника')) && !(hideZero && isZeroFact(i, warehouse)));
   const deficit = items.filter(i=>(shortage(i,warehouse)||0)>0);
   function exportCsv() {
     const cell = (v: unknown) => `"${String(v??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')}"`;
@@ -116,7 +116,7 @@ export default function Warehouse() {
       <nav className="tabs" aria-label="Разделы склада">{[['stock','Остатки'],['purchase','К пополнению'],['history','История']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
       {tab==='history'?<section className="history"><p className="muted">Последние 500 документов. Все операции хранятся на сервере. Исправления оформляйте новой операцией.</p>{data.history.length===0?<div className="empty">Операций пока нет. Начальные остатки загружены отдельно.</div>:data.history.map(o=><article key={o.id}><div className="history-title"><b>{kinds[o.kind as Kind]||o.kind}</b><small>{new Date(o.at).toLocaleString('ru-RU')} · {o.actor}</small></div><p>{o.note}</p>{o.changes.map((c,n)=>{const [label,value]=historyChange(c);return <div className="change" key={n}><span>{label}</span><b>{value}</b></div>;})}</article>)}</section>:<>
       {tab==='purchase'&&<div className="info">Недостача считается только там, где известны факт и эталон. Непосчитанные позиции сюда не входят. Внесите закупку через «Поступление».</div>}
-      <div className="stock-toolbar"><label className="search"><Search size={18}/><input aria-label="Поиск позиции" placeholder="Найти позицию…" value={query} onChange={e=>setQuery(e.target.value)}/></label><select aria-label="Категория" value={category} onChange={e=>setCategory(e.target.value)}><option value="">Все категории</option>{categories.map(c=><option key={c}>{c}</option>)}</select><select aria-label="Фильтр остатков" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Все остатки</option><option value="equipment">Эталон техники</option><option value="short">Ниже эталона</option><option value="unknown">Не посчитано</option><option value="repair">В ремонте</option><option value="notes">С примечанием</option></select><button onClick={()=>open('inventory')}><ClipboardCheck size={17}/> Инвентаризация</button></div>
+      <div className="stock-toolbar"><label className="search"><Search size={18}/><input aria-label="Поиск позиции" placeholder="Найти позицию…" value={query} onChange={e=>setQuery(e.target.value)}/></label><select aria-label="Категория" value={category} onChange={e=>setCategory(e.target.value)}><option value="">Все категории</option>{categories.map(c=><option key={c}>{c}</option>)}</select><select aria-label="Фильтр остатков" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Все остатки</option><option value="equipment">Эталон техники</option><option value="short">Ниже эталона</option><option value="unknown">Не посчитано</option><option value="repair">В ремонте</option><option value="notes">С примечанием</option></select><label className="zero-toggle" title="Не показывать позиции, у которых факт на выбранном складе равен 0. Непосчитанный остаток остаётся в списке."><input type="checkbox" checked={hideZero} onChange={e=>setHideZero(e.target.checked)} />Скрыть нули</label><button onClick={()=>open('inventory')}><ClipboardCheck size={17}/> Инвентаризация</button></div>
       <p className="table-legend">Эталон — желаемое количество по норме склада, отдельно от факта. Для техники сверьте его с фото-списком через фильтр «Эталон техники».</p>
       {filter==='equipment'&&<p className="info">Эталон техники: в столбце «Эталон» норма склада, в «Факт» — что посчитали. Числа из фото в таблицу не подставляются.</p>}
       <div className="stock-table" tabIndex={0} role="region" aria-label="Остатки склада — таблица с прокруткой">

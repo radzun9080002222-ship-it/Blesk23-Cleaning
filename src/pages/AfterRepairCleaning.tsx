@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
-import PublicCleaningCalculator from '@/components/calculator/PublicCleaningCalculator';
+import CallForPrice from '@/components/CallForPrice';
 import YandexReviewsSection from '@/components/YandexReviewsSection';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
@@ -178,7 +178,10 @@ const AfterRepairCleaning = () => {
                   size="lg"
                   className="rounded-full px-7 bg-[#41BFAE] hover:bg-[#41BFAE]/90 text-[#003F3B] font-semibold shadow-xl"
                 >
-                  <a href="#calc">Рассчитать стоимость</a>
+                  <a href="tel:+79002885255" onClick={() => reachGoal('phone_click')}>
+                    <Phone className="w-5 h-5 mr-2" />
+                    Узнать цену по телефону
+                  </a>
                 </Button>
                 <Button
                   asChild
@@ -227,8 +230,11 @@ const AfterRepairCleaning = () => {
           </div>
         </section>
 
-        {/* CALCULATOR + FORM */}
-        <PublicCleaningCalculator mode="repair" sectionId="calc" />
+        {/* CALL FOR PRICE */}
+        <CallForPrice
+          title="Сколько стоит уборка после ремонта?"
+          subtitle="Позвоните или напишите — уточним площадь и объём работ, рассчитаем точную цену и зафиксируем её до выезда."
+        />
 
         {/* BEFORE / AFTER */}
         <section className="py-16 md:py-24 bg-white border-y border-[#DDEBE8]">

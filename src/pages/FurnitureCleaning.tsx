@@ -1,4 +1,3 @@
-import { useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
   Accordion,
@@ -25,15 +24,10 @@ import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
-import FurnitureCalculator, {
-  FURNITURE_ITEMS,
-  FURNITURE_MINIMUM,
-} from '@/components/furniture/FurnitureCalculator';
-import FurnitureLeadForm from '@/components/furniture/FurnitureLeadForm';
+import CallForPrice from '@/components/CallForPrice';
 import YandexReviewsSection from '@/components/YandexReviewsSection';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
-import { usePricingConfig } from '@/hooks/usePricingConfig';
 
 const heroImg = { url: '/images/himchistka/hero.webp' };
 const heroVideo = { url: '/images/himchistka/video-hero.mp4' };
@@ -54,8 +48,6 @@ const waUrl = 'https://wa.me/79002885255';
 const tgUrl = 'https://t.me/+79002885255';
 const maxUrl =
   'https://max.ru/u/f9LHodD0cOJtMUjlrXWI6y94fo8f8qPlmQdiA50RMF8i1MsNISiZPv1iKWk';
-
-const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₽';
 
 const steps = [
   { n: '01', t: 'Заявка и расчёт', d: 'Отвечаем за 2 минуты, фиксируем цену и время.' },
@@ -133,38 +125,6 @@ const faqExtra = [
 ];
 
 const FurnitureCleaning = () => {
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const formRef = useRef<HTMLDivElement>(null);
-  const pricing = usePricingConfig();
-
-  const furnitureItems = useMemo(
-    () => FURNITURE_ITEMS.map((item) => ({ ...item, price: pricing.dry[item.id] || item.price })),
-    [pricing]
-  );
-
-  const total = useMemo(
-    () => {
-      const rawTotal = furnitureItems.reduce(
-        (s, it) => s + (counts[it.id] || 0) * it.price,
-        0
-      );
-      return rawTotal > 0 ? Math.max(rawTotal, FURNITURE_MINIMUM) : 0;
-    },
-    [counts, furnitureItems]
-  );
-
-  const composition = useMemo(
-    () =>
-      furnitureItems.filter((it) => (counts[it.id] || 0) > 0)
-        .map((it) => `${it.name} × ${counts[it.id]}`)
-        .join('; '),
-    [counts, furnitureItems]
-  );
-
-  const scrollToForm = () => {
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
-
   const scrollToCalc = () => {
     document
       .getElementById('calc')
@@ -284,11 +244,14 @@ const FurnitureCleaning = () => {
 
               <div className="mt-8 flex flex-wrap gap-3">
                 <Button
+                  asChild
                   size="lg"
-                  onClick={scrollToCalc}
                   className="rounded-full px-7 bg-[#41BFAE] hover:bg-[#41BFAE]/90 text-[#003F3B] font-semibold shadow-xl"
                 >
-                  Рассчитать за 2 минуты
+                  <a href={phoneHref} onClick={() => reachGoal('phone_click')}>
+                    <Phone className="w-5 h-5 mr-2" />
+                    Узнать цену по телефону
+                  </a>
                 </Button>
                 <Button
                   asChild
@@ -332,49 +295,16 @@ const FurnitureCleaning = () => {
                     Max
                   </a>
                 </Button>
-                <Button
-                  asChild
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full px-7 bg-transparent border-white/50 text-white hover:bg-white/10 hover:text-white"
-                >
-                  <a href={phoneHref} onClick={() => reachGoal('phone_click')}>
-                    <Phone className="w-5 h-5 mr-2" />
-                    Позвонить
-                  </a>
-                </Button>
               </div>
             </div>
           </div>
         </section>
 
-        {/* CALCULATOR */}
-        <section id="calc" className="py-16 md:py-24">
-          <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center mb-10">
-              <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                Сколько стоит химчистка моей мебели?
-              </h2>
-              <p className="text-muted-foreground mt-3">
-                Выберите мебель — рассчитаем и зафиксируем сумму до выезда. Минимальный заказ 4 000 ₽.
-              </p>
-            </div>
-
-            <div className="grid lg:grid-cols-[1.6fr_1fr] gap-6 max-w-6xl mx-auto items-start">
-              <FurnitureCalculator
-                counts={counts}
-                setCounts={setCounts}
-                onFix={scrollToForm}
-              />
-              <div ref={formRef}>
-                <FurnitureLeadForm
-                  composition={composition}
-                  total={total}
-                />
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* CALL FOR PRICE */}
+        <CallForPrice
+          title="Сколько стоит химчистка моей мебели?"
+          subtitle="Позвоните или напишите — уточним, что нужно почистить, рассчитаем точную цену и зафиксируем её до выезда. Минимальный заказ 4 000 ₽."
+        />
 
         {/* BEFORE / AFTER */}
         <section className="py-16 md:py-24 bg-white border-y border-[#DDEBE8]">

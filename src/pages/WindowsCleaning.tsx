@@ -1,4 +1,3 @@
-import { useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
   Accordion,
@@ -24,12 +23,7 @@ import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
-import WindowsCalculator, {
-  WINDOW_ITEMS,
-  WindowTariff,
-  calcTotal,
-} from '@/components/windows/WindowsCalculator';
-import WindowsLeadForm from '@/components/windows/WindowsLeadForm';
+import CallForPrice from '@/components/CallForPrice';
 import YandexReviewsSection from '@/components/YandexReviewsSection';
 import { reachGoal } from '@/lib/metrika';
 import maxIcon from '@/assets/max-icon.webp';
@@ -60,13 +54,6 @@ const waUrl = 'https://wa.me/79002885255';
 const tgUrl = 'https://t.me/+79002885255';
 const maxUrl =
   'https://max.ru/u/f9LHodD0cOJtMUjlrXWI6y94fo8f8qPlmQdiA50RMF8i1MsNISiZPv1iKWk';
-
-const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₽';
-
-const tariffLabels: Record<WindowTariff, string> = {
-  general: 'Генеральная / влажная',
-  repair: 'После ремонта',
-};
 
 const steps = [
   { n: '01', t: 'Заявка и расчёт', d: 'Считаем стоимость за 2 минуты и согласовываем время.' },
@@ -140,26 +127,6 @@ const faqExtra = [
 ];
 
 const WindowsCleaning = () => {
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [tariff, setTariff] = useState<WindowTariff>('general');
-  const [film, setFilm] = useState(false);
-  const formRef = useRef<HTMLDivElement>(null);
-
-  const total = useMemo(() => calcTotal(counts, tariff, film), [counts, tariff, film]);
-
-  const composition = useMemo(
-    () =>
-      WINDOW_ITEMS.filter((it) => (counts[it.id] || 0) > 0)
-        .map((it) => `${it.name} × ${counts[it.id]}`)
-        .join('; ') + (tariff === 'repair' && film ? '; плёнка ×2' : ''),
-    [counts, tariff, film],
-  );
-
-  const scrollToForm = () =>
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  const scrollToCalc = () =>
-    document.getElementById('calc')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
   const localBusinessJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
@@ -251,8 +218,10 @@ const WindowsCleaning = () => {
               </div>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <Button size="lg" onClick={scrollToCalc} className="rounded-full px-7 bg-[#41BFAE] hover:bg-[#41BFAE]/90 text-[#003F3B] font-semibold shadow-xl">
-                  Рассчитать за 2 минуты
+                <Button asChild size="lg" className="rounded-full px-7 bg-[#41BFAE] hover:bg-[#41BFAE]/90 text-[#003F3B] font-semibold shadow-xl">
+                  <a href={phoneHref} onClick={() => reachGoal('phone_click')}>
+                    <Phone className="w-5 h-5 mr-2" />Узнать цену по телефону
+                  </a>
                 </Button>
                 <Button asChild size="lg" className="rounded-full px-7 bg-[#25D366] hover:bg-[#1ebe5b] text-white">
                   <a href={waUrl} target="_blank" rel="noopener noreferrer">
@@ -269,48 +238,16 @@ const WindowsCleaning = () => {
                     <img src={maxIcon} alt="Max" className="w-5 h-5 rounded mr-2" />Max
                   </a>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-full px-7 bg-transparent border-white/50 text-white hover:bg-white/10 hover:text-white">
-                  <a href={phoneHref} onClick={() => reachGoal('phone_click')}>
-                    <Phone className="w-5 h-5 mr-2" />Позвонить
-                  </a>
-                </Button>
               </div>
             </div>
           </div>
         </section>
 
-        {/* CALCULATOR */}
-        <section id="calc" className="py-16 md:py-24">
-          <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center mb-10">
-              <h2 className="font-heading text-3xl md:text-4xl font-bold">
-                Узнайте цену за 2 минуты
-              </h2>
-              <p className="text-muted-foreground mt-3">
-                Фиксируем стоимость до начала работ.
-              </p>
-            </div>
-
-            <div className="grid lg:grid-cols-[1.6fr_1fr] gap-6 max-w-6xl mx-auto items-start">
-              <WindowsCalculator
-                counts={counts}
-                setCounts={setCounts}
-                tariff={tariff}
-                setTariff={setTariff}
-                film={film}
-                setFilm={setFilm}
-                onFix={scrollToForm}
-              />
-              <div ref={formRef}>
-                <WindowsLeadForm
-                  composition={composition}
-                  totalLabel={total > 0 ? `от ${fmt(total)}` : ''}
-                  tariffLabel={tariffLabels[tariff]}
-                />
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* CALL FOR PRICE */}
+        <CallForPrice
+          title="Сколько стоит мойка моих окон?"
+          subtitle="Позвоните или напишите — уточним количество и тип окон, рассчитаем точную цену и зафиксируем её до выезда."
+        />
 
         {/* BEFORE / AFTER */}
         <section className="py-16 md:py-24 bg-white border-y border-[#DDEBE8]">

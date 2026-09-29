@@ -8,7 +8,7 @@ import Pricing from "@/components/Pricing";
 import Reviews from "@/components/Reviews";
 import Contacts from "@/components/Contacts";
 import Footer from "@/components/Footer";
-import PublicCleaningCalculator from "@/components/calculator/PublicCleaningCalculator";
+import CallForPrice from "@/components/CallForPrice";
 
 const Index = () => {
   const [prefilledMessage, setPrefilledMessage] = useState('');
@@ -17,7 +17,7 @@ const Index = () => {
     <div className="min-h-screen">
       <Header />
       <Hero />
-      <PublicCleaningCalculator />
+      <CallForPrice />
       <Services />
       <About />
       <Gallery />
